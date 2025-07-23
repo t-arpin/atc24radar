@@ -1,0 +1,66 @@
+html, body, #svg-container {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-drag: none;
+    touch-action: none;
+    font-family: ui-monospace, "Cascadia Mono", monospace
+}
+#svg-container {
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+svg {
+    display: block;       /* removes inline gap */
+    width: 100vw;
+    height: 100vh;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+#top-bar {
+    background: #222;
+    color: #fff;
+    height: 80px;
+    display: flex;
+    align-items: center;
+
+}
+
+.menu-button {
+    background: #303030;
+    color: #fff;
+    border: none;
+    height: 100%;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-family: ui-monospace, "Cascadia Mono", monospace
+}
+
+.time-display {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    color: #fff;
+    font-size: 1.2em;
+}
+
+#time {
+    margin: 8px;
+    padding: 2px;
+    width: 90px;
+    border: 3px solid #303030;
+    border-radius: 3px;
+}
+
+
+#time-button {
+    width: 60px;
+    height: 100%;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
