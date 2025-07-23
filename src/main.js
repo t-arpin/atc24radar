@@ -1,8 +1,10 @@
 const container = document.getElementById('svg-container');
 const timeDisplay = document.getElementById('time');
 const timeButton = document.getElementById('time-button');
+const airspaceButton = document.getElementById('airspace-bounds');
 
 let zuluTime = false;
+let airspaceBoundsVisible = true;
 
 // Update time display every second
 function updateTime() {
@@ -15,10 +17,33 @@ setInterval(updateTime, 1000);
 
 timeButton.addEventListener('click', () => {
     zuluTime = !zuluTime;
-    timeButton.textContent = zuluTime ? 'UTC' : 'Local';
+    timeButton.textContent = zuluTime ? 'UTC' : 'LOCAL';
     updateTime();
 });
 
+airspaceButton.addEventListener('click', () => {
+    airspaceBoundsVisible = !airspaceBoundsVisible;
+    document.getElementById('boundaries-svg').style.display = airspaceBoundsVisible ? 'block' : 'none';
+    airspaceButton.style.background = airspaceBoundsVisible ? '#4d4d4d' : '#3E3E3E';
+    airspaceButton.style.borderRight = airspaceBoundsVisible ? '3px solid rgb(99, 99, 99)' : '3px solid rgb(56, 56, 56)';
+    airspaceButton.style.borderBottom = airspaceBoundsVisible ? '3px solid rgb(99, 99, 99)' : '3px solid rgb(56, 56, 56)';
+    airspaceButton.style.borderTop = airspaceBoundsVisible ? '3px solid rgb(56, 56, 56)' : '3px solid rgb(99, 99, 99)';
+    airspaceButton.style.borderLeft = airspaceBoundsVisible ? '3px solid rgb(56, 56, 56)' : '3px solid rgb(99, 99, 99)';
+});
+
+function createPlaneIcon(callsign = '0', alt = '0', speed = '0', heading = '0', type = '0', player = '0') {
+    const planeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    planeIcon.setAttribute('id', 'plane-icon');
+    planeIcon.setAttribute('callsign', callsign);
+    planeIcon.setAttribute('alt', alt);
+    planeIcon.setAttribute('speed', speed);
+    planeIcon.setAttribute('heading', heading);
+    planeIcon.setAttribute('type', type);
+    planeIcon.setAttribute('player', player);
+    return planeIcon;
+}
+
+//fetch main SVG
 fetch('assets/coast.svg')
     .then(response => {
         if (!response.ok) {
@@ -26,11 +51,14 @@ fetch('assets/coast.svg')
         }
         return response.text();
     })
-    .then(svgText => {
+    .then(async svgText => {
+        svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
         container.innerHTML = svgText;
 
         const svg = container.querySelector('svg');
         if (!svg) throw new Error('No <svg> element found in file');
+
+        svg.setAttribute('id', 'map-svg');
 
         //get viewBox
         const viewBox = svg.viewBox.baseVal;
@@ -43,7 +71,9 @@ fetch('assets/coast.svg')
         viewBox.y = -viewBox.height / 2;
         let initalviewBoxwidth = viewBox.width;
         let initalviewBoxheight = viewBox.height;
-        
+
+        svg.appendChild(createPlaneIcon());
+
         window.addEventListener('resize', () => {
             //update viewBox refence size
             const bbox = svg.getBBox();
@@ -132,3 +162,25 @@ fetch('assets/coast.svg')
         container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
     });
 
+//fetch boundaries SVG
+fetch('assets/boundaries.svg')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load SVG: ' + response.status);
+        }
+        return response.text();
+    })
+    .then(async boundariesText => {
+        const svg = document.getElementById('map-svg')
+        svg.innerHTML += boundariesText;
+
+        const boundaries = svg.querySelector('svg');
+        if (!boundaries) throw new Error('No <svg> element found in file');
+
+        boundaries.setAttribute('id', 'boundaries-svg');
+
+    })
+    .catch(err => {
+        console.error(err);
+        container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
+    });

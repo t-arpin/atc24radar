@@ -7,18 +7,30 @@ html, body, #svg-container {
     font-family: ui-monospace, "Cascadia Mono", monospace
 }
 #svg-container {
-    background: black;
+    background-color: black;
     display: flex;
     justify-content: center;
     align-items: center;
 }
+
 svg {
     display: block;       /* removes inline gap */
+    overflow: visible;
     width: 100vw;
     height: 100vh;
     touch-action: none;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+#plane-icon {
+    position: relative;
+    cx: 0;
+    cy: 0;
+    r: 20;
+    fill: blue;
+    cursor: pointer;
+    left: 100px;
 }
 
 #top-bar {
@@ -40,6 +52,18 @@ svg {
     font-family: ui-monospace, "Cascadia Mono", monospace
 }
 
+.menu-button:active {
+  background-color: #4d4d4d;
+}
+
+#airspace-bounds {
+    background-color: #4d4d4d;
+    border-bottom:  3px solid rgb(99, 99, 99);
+    border-right: 3px solid rgb(99, 99, 99);
+    border-top: 3px solid rgb(56, 56, 56);
+    border-left: 3px solid rgb(56, 56, 56);
+}
+
 .time-display {
     display: flex;
     height: 100%;
@@ -56,11 +80,14 @@ svg {
     border-radius: 3px;
 }
 
-
 #time-button {
     width: 60px;
     height: 100%;
     border: none;
     cursor: pointer;
     transition: background 0.2s;
+}
+
+#airspace-bounds {
+    width: 90px;
 }
