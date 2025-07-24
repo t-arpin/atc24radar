@@ -1,0 +1,253 @@
+{
+    "Belta-3484": {
+        "heading": 196,
+        "playerName": "Jatnietorres",
+        "altitude": 44,
+        "aircraftType": "Boeing 777",
+        "position": {
+            "y": -20019,
+            "x": 17584
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Vixen-9613": {
+        "heading": 90,
+        "playerName": "Trey41308",
+        "altitude": 23,
+        "aircraftType": "KingAir 260",
+        "position": {
+            "y": -4486,
+            "x": 5365
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Jersey-4833": {
+        "heading": 257,
+        "playerName": "DaRilonag",
+        "altitude": 8,
+        "aircraftType": "ATR72",
+        "position": {
+            "y": -2469,
+            "x": -43694
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Striker-3896": {
+        "heading": 186,
+        "playerName": "Alderpaw2",
+        "altitude": 31,
+        "aircraftType": "Cessna Caravan",
+        "position": {
+            "y": -20012,
+            "x": 17451
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Eagle-6597": {
+        "heading": 240,
+        "playerName": "gaddang_boy2",
+        "altitude": 30,
+        "aircraftType": "Cirrus Vision",
+        "position": {
+            "y": -19643,
+            "x": 18051
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Belta-4240": {
+        "heading": 63,
+        "playerName": "Ezequiel22020",
+        "altitude": 169,
+        "aircraftType": "Boeing 737",
+        "position": {
+            "y": -3209,
+            "x": -42549
+        },
+        "speed": 226,
+        "wind": "148/7",
+        "isOnGround": false,
+        "groundSpeed": 225.26624671212753
+    },
+    "Kestral-2666": {
+        "heading": 270,
+        "playerName": "dteyul1",
+        "altitude": 21,
+        "aircraftType": "Cirrus Vision",
+        "position": {
+            "y": -4377,
+            "x": 5482
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Speedbird-3378": {
+        "heading": 104,
+        "playerName": "Isseiyasuda",
+        "altitude": 14,
+        "aircraftType": "Boeing 757",
+        "position": {
+            "y": 32491,
+            "x": 21371
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Apollo-6736": {
+        "heading": 44,
+        "playerName": "CRICK4349",
+        "altitude": 957,
+        "aircraftType": "Sikorsky S92",
+        "position": {
+            "y": -14278,
+            "x": 15654
+        },
+        "speed": 139,
+        "wind": "148/7",
+        "groundSpeed": 142.1316644494529
+    },
+    "Firebird-4545": {
+        "heading": 345,
+        "playerName": "JAYDENNIGHTHAWK",
+        "altitude": 23,
+        "aircraftType": "KingAir 260",
+        "position": {
+            "y": -4318,
+            "x": 5410
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Tedex-5404": {
+        "heading": 342,
+        "playerName": "meaniny",
+        "altitude": 17,
+        "aircraftType": "Boeing 767 Cargo",
+        "position": {
+            "y": 3692,
+            "x": 43942
+        },
+        "speed": -10,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 9.990267909620203
+    },
+    "Emarates-1559": {
+        "heading": 38,
+        "playerName": "Antonio_volly12",
+        "altitude": 4323,
+        "aircraftType": "Airbus A350",
+        "position": {
+            "y": 16348,
+            "x": -4966
+        },
+        "speed": 487,
+        "wind": "148/7",
+        "isOnGround": false,
+        "groundSpeed": 194.80283219784513
+    },
+    "AZOL-1354": {
+        "heading": 284,
+        "playerName": "guiguifofolindo",
+        "altitude": 15,
+        "aircraftType": "Airbus A320",
+        "position": {
+            "y": 3957,
+            "x": 44915
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Oatari-1993": {
+        "heading": 199,
+        "playerName": "tycbbrbbbr",
+        "altitude": 250,
+        "aircraftType": "Boeing 787",
+        "position": {
+            "y": -34696,
+            "x": -5516
+        },
+        "speed": 131,
+        "wind": "148/7",
+        "isOnGround": false,
+        "groundSpeed": 131.32655677619596
+    },
+    "Zenith-6258": {
+        "heading": 66,
+        "playerName": "CladRaccer",
+        "altitude": 9,
+        "aircraftType": "Bombardier Learjet 45",
+        "position": {
+            "y": 20714,
+            "x": -3012
+        },
+        "speed": 24,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 23.970782968217755
+    },
+    "Reunited-5957": {
+        "heading": 336,
+        "playerName": "coolyomanboy27",
+        "altitude": 53,
+        "aircraftType": "Boeing 787",
+        "position": {
+            "y": 14607,
+            "x": -19499
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    },
+    "Hard-5104": {
+        "heading": 139,
+        "playerName": "andguss",
+        "altitude": 3002,
+        "aircraftType": "Airbus A320",
+        "position": {
+            "y": -8527,
+            "x": 34683
+        },
+        "speed": 447,
+        "wind": "148/7",
+        "isOnGround": false,
+        "groundSpeed": 0
+    },
+    "Zenith-5570": {
+        "heading": 199,
+        "playerName": "daisyandpatches",
+        "altitude": 15,
+        "aircraftType": "Bombardier Learjet 45",
+        "position": {
+            "y": -4412,
+            "x": 5757
+        },
+        "speed": 0,
+        "wind": "148/7",
+        "isOnGround": true,
+        "groundSpeed": 0
+    }
+}

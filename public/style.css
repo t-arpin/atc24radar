@@ -20,8 +20,26 @@ html, body, #svg-container {
     background-color: black;
     height: 100vh;
     width: auto;
+    display: flex;;
     align-items: center;
+    justify-content: center;
     z-index: 1;
+    gap: 10px;
+}
+
+.sidebar-button {
+    background: #303030;
+    color: #fff;
+    border: none;
+    height: 30px;
+    cursor: pointer;
+    font-family: ui-monospace, "Cascadia Mono", monospace;
+    border-radius: 8px;
+    display: none;
+}
+
+.sidebar-button:hover {
+    background: #292929;
 }
 
 #resizer {
@@ -101,6 +119,14 @@ a {
     padding: 1px;
 }
 
+#ground-aircraft {
+    background-color: #4d4d4d;
+    border: 3px solid #4B5DA3;
+    border-radius: 8px;
+    width: 90px;
+    padding: 1px;
+}
+
 #display-button {
     position: absolute;
     width: 30px;
@@ -108,6 +134,16 @@ a {
     bottom: 10px;
     left: 10px;
     z-index: 2;
+}
+
+#aircraft-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
 }
 
 .time-display {
