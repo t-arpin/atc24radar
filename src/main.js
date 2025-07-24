@@ -1,10 +1,18 @@
+//html elements
 const container = document.getElementById('svg-container');
 const timeDisplay = document.getElementById('time');
 const timeButton = document.getElementById('time-button');
 const airspaceButton = document.getElementById('airspace-bounds');
+const displayButton = document.getElementById('display-button');
+const resizer = document.getElementById('resizer');
+
+//websocket localhost port
+const PORT = 4000;
 
 let zuluTime = false;
 let airspaceBoundsVisible = true;
+let sideDisplayToggle = false;
+let isDragging = false;
 
 // Update time display every second
 function updateTime() {
@@ -25,22 +33,73 @@ airspaceButton.addEventListener('click', () => {
     airspaceBoundsVisible = !airspaceBoundsVisible;
     document.getElementById('boundaries-svg').style.display = airspaceBoundsVisible ? 'block' : 'none';
     airspaceButton.style.background = airspaceBoundsVisible ? '#4d4d4d' : '#3E3E3E';
-    airspaceButton.style.borderRight = airspaceBoundsVisible ? '3px solid rgb(99, 99, 99)' : '3px solid rgb(56, 56, 56)';
-    airspaceButton.style.borderBottom = airspaceBoundsVisible ? '3px solid rgb(99, 99, 99)' : '3px solid rgb(56, 56, 56)';
-    airspaceButton.style.borderTop = airspaceBoundsVisible ? '3px solid rgb(56, 56, 56)' : '3px solid rgb(99, 99, 99)';
-    airspaceButton.style.borderLeft = airspaceBoundsVisible ? '3px solid rgb(56, 56, 56)' : '3px solid rgb(99, 99, 99)';
+    airspaceButton.style.border = airspaceBoundsVisible ? '2px solid #4B5DA3' : 'none';
 });
 
-function createPlaneIcon(callsign = '0', alt = '0', speed = '0', heading = '0', type = '0', player = '0') {
+displayButton.addEventListener('click', () => {
+    sideDisplayToggle = !sideDisplayToggle;
+    document.getElementById('map-svg').style.width = sideDisplayToggle ? '50vw' : '100vw';
+    document.getElementById('side-display').style.width = sideDisplayToggle ? '50vw' : '0';
+    document.getElementById('resizer').style.width = sideDisplayToggle ? '1px' : '0';
+    displayButton.innerText = sideDisplayToggle ? '<' : '>';
+});
+
+//webSocket client to receive aircraft data
+const socket = new WebSocket(`ws://localhost:${PORT}`);
+
+socket.onmessage = event => {
+    const data = JSON.parse(event.data);
+    console.clear();
+    updateAircraftLayer(data);
+    /*console.log('=== Aircraft Data ===');
+    for (const callsign in data) {
+        const acft = data[callsign];
+        console.log(`\nCallsign: ${callsign}`);
+        console.log(`  Player: ${acft.playerName}`);
+        console.log(`  Type: ${acft.aircraftType}`);
+        console.log(`  Alt: ${acft.altitude} ft`);
+        console.log(`  Speed: ${acft.speed} knots`);
+        console.log(`  Position: x=${acft.position.x}, y=${acft.position.y}`);
+    }*/
+};
+socket.onerror = err => console.error('WebSocket error:', err);
+
+function createPlaneIcon(player = '0', callsign = '0', alt = '0', speed = '0', heading = '0', type = '0') {
     const planeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    planeIcon.setAttribute('id', 'plane-icon');
+    planeIcon.setAttribute('id', player);
     planeIcon.setAttribute('callsign', callsign);
     planeIcon.setAttribute('alt', alt);
     planeIcon.setAttribute('speed', speed);
     planeIcon.setAttribute('heading', heading);
     planeIcon.setAttribute('type', type);
-    planeIcon.setAttribute('player', player);
     return planeIcon;
+}
+
+//aircraft fetures
+let aircraftElements = {}; // Maps aircraft ID to <g> element
+
+function updateAircraftLayer(aircraftData) {
+    const newIds = new Set();
+
+    for (const [id, info] of Object.entries(aircraftData)) {
+        const { x, y } = info.position;
+        newIds.add(id);
+        
+        let group = aircraftElements[id];
+    }
+
+    // Remove aircraft no longer in the data
+    for (const id in aircraftElements) {
+        if (!newIds.has(id)) {
+            const group = aircraftElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
+            }
+            delete aircraftElements[id];
+        }
+    }
+
+    console.log(newIds.info);
 }
 
 //fetch main SVG
@@ -53,7 +112,7 @@ fetch('assets/coast.svg')
     })
     .then(async svgText => {
         svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
-        container.innerHTML = svgText;
+        container.innerHTML += svgText;
 
         const svg = container.querySelector('svg');
         if (!svg) throw new Error('No <svg> element found in file');
@@ -100,8 +159,6 @@ fetch('assets/coast.svg')
             if (!isPanning) return;
 
             const rect = container.getBoundingClientRect();
-
-            console.log(rect);
 
             //calculate scale factors
             const scaleX = viewBox.width / Math.min(rect.width, initalviewBoxwidth);
@@ -184,3 +241,35 @@ fetch('assets/boundaries.svg')
         console.error(err);
         container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
     });
+
+/*fetch rings SVG **currently disabled
+fetch('assets/rings.svg')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load SVG: ' + response.status);
+        }
+        return response.text();
+    })
+    .then(async ringsText => {
+        const svg = document.getElementById('boundaries-svg')
+        svg.innerHTML += ringsText;
+
+        const rings = svg.querySelector('svg');
+        if (!rings) throw new Error('No <svg> element found in file');
+
+        rings.setAttribute('id', 'rings-svg');
+
+        const inner = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        inner.setAttribute("transform", "translate(0, 100)"); // <-- Your offset here
+        while (rings.firstChild) {
+            inner.appendChild(rings.firstChild);
+        }
+        rings.appendChild(inner);
+
+        svg.appendChild(rings); // Append to the main map SVG
+
+    })
+    .catch(err => {
+        console.error(err);
+        container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
+    }); */

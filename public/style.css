@@ -1,4 +1,5 @@
 html, body, #svg-container {
+    background-color: black;
     margin: 0; padding: 0; height: 100%; width: 100%;
     overflow: hidden;
     user-select: none;
@@ -6,18 +7,38 @@ html, body, #svg-container {
     touch-action: none;
     font-family: ui-monospace, "Cascadia Mono", monospace
 }
+
 #svg-container {
-    background-color: black;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: visible;
+    width: 100vw;
+}
+
+#side-display {
+    background-color: black;
+    height: 100vh;
+    width: auto;
+    align-items: center;
+    z-index: 1;
+}
+
+#resizer {
+    background-color: #333333;
+    border: none;
+    padding: 0px;
+    height: 100vh;
+    width: auto;
+    z-index: 1;
+
 }
 
 svg {
-    display: block;       /* removes inline gap */
+    display: block;
     overflow: visible;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     touch-action: none;
     user-select: none;
     -webkit-user-drag: none;
@@ -34,12 +55,28 @@ svg {
 }
 
 #top-bar {
+    position: absolute;
+    top: 3vh;
+    left: 5vw;
+    right: 5vw;
     background: #222;
     color: #fff;
-    height: 80px;
+    height: 60px;
     display: flex;
     align-items: center;
+    border-radius: 20px;
+    gap: 5px;
+    z-index: 10;
+}
 
+a {
+    color: #fff;
+    text-decoration: none;
+}
+
+#name {
+    margin-left: auto;
+    margin-right: 20px;
 }
 
 .menu-button {
@@ -47,21 +84,30 @@ svg {
     color: #fff;
     border: none;
     height: 100%;
-    padding: 6px 12px;
+
     cursor: pointer;
-    font-family: ui-monospace, "Cascadia Mono", monospace
+    font-family: ui-monospace, "Cascadia Mono", monospace;
+    border-radius: 8px;
 }
 
-.menu-button:active {
-  background-color: #4d4d4d;
+.menu-button:hover {
+  background-color: #333333;
 }
 
 #airspace-bounds {
     background-color: #4d4d4d;
-    border-bottom:  3px solid rgb(99, 99, 99);
-    border-right: 3px solid rgb(99, 99, 99);
-    border-top: 3px solid rgb(56, 56, 56);
-    border-left: 3px solid rgb(56, 56, 56);
+    border: 3px solid #4B5DA3;
+    border-radius: 8px;
+    padding: 1px;
+}
+
+#display-button {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    bottom: 10px;
+    left: 10px;
+    z-index: 2;
 }
 
 .time-display {
@@ -70,10 +116,10 @@ svg {
     align-items: center;
     color: #fff;
     font-size: 1.2em;
+    gap: 5px;
 }
 
 #time {
-    margin: 8px;
     padding: 2px;
     width: 90px;
     border: 3px solid #303030;
@@ -86,6 +132,9 @@ svg {
     border: none;
     cursor: pointer;
     transition: background 0.2s;
+    border-radius: 10px;
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
 }
 
 #airspace-bounds {
