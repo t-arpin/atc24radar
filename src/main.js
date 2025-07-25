@@ -23,7 +23,7 @@ let groundAircraftHidden = false;
 let labelPadding = 50;
 let defaultLabelOffset = 10;
 const aircraftTrails = {}; // Keyed by aircraft ID, array of positions
-const maxTrailLength = 50; // Limit the number of trail points
+const maxTrailLength = 15; // Limit the number of trail points
 
 // Update time display every second
 function updateTime() {
@@ -84,6 +84,13 @@ let aircraftElements = {}; // Maps aircraft ID to <g> element
 function updateAircraftLayer(aircraftData) {
     const newIds = new Set();
     const svg = document.getElementById('map-svg');
+
+    let trailsLayer = document.getElementById('trails-layer');
+    if (!trailsLayer) {
+        trailsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        trailsLayer.setAttribute('id', 'trails-layer');
+        svg.appendChild(trailsLayer); // ensures it's above the map and other background layers
+    }
 
     let start = { x: 0, y: 0};
 
@@ -173,36 +180,46 @@ function updateAircraftLayer(aircraftData) {
             svg.appendChild(group);
 
             aircraftElements[id] = group;
+
+            document.addEventListener('wheel', e => {
+                updateLabel(group, info, id);
+                document.querySelectorAll('.trail').forEach(trail => {
+                    trail.setAttribute('stroke-width', 1 * currentZoom);
+                });
+                updateConnector(group);
+            });
         }
 
         //update position
         group.setAttribute('transform', `translate(${x/100}, ${y/100})`);
 
-        // Update trails
-        if (!aircraftTrails[id]) {
-            aircraftTrails[id] = [];
+        //handle trails only if aircraft is not on the ground
+        if (!isOnGround) {
+            if (!aircraftTrails[id]) {
+                aircraftTrails[id] = [];
+            }
+
+            aircraftTrails[id].push({ x: x / 100, y: y / 100 });
+
+            if (aircraftTrails[id].length > maxTrailLength) {
+                aircraftTrails[id].shift();
+            }
+
+            drawTrail(id, aircraftTrails[id]);
+        } else {
+            // If on ground, remove any existing trail
+            const trail = document.getElementById(`trail-${id}`);
+            if (trail && trail.parentNode) {
+                trail.parentNode.removeChild(trail);
+            }
+            delete aircraftTrails[id];
         }
-
-        aircraftTrails[id].push({ x: x / 100, y: y / 100 });
-
-        if (aircraftTrails[id].length > maxTrailLength) {
-            aircraftTrails[id].shift(); // Keep trail length manageable
-        }
-
-        drawTrail(id, aircraftTrails[id])
 
         //hide/show ground aircraft
         group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
 
         //label stuff
         updateLabel(group, info, id);
-        
-        document.addEventListener('wheel', e => {
-            updateLabel(group, info, id);
-            document.querySelectorAll('.trail').forEach(trail => {
-                trail.setAttribute('stroke-width', 1 * currentZoom);
-            });
-        });
     }
 
     // Remove aircraft no longer in the data
@@ -232,20 +249,27 @@ function updateAircraftLayer(aircraftData) {
 function drawTrail(id, points) {
     const svg = document.getElementById('map-svg');
     let path = document.getElementById(`trail-${id}`);
+    const trailsLayer = document.getElementById('trails-layer');
 
-    // Create path if it doesn't exist
     if (!path) {
-        path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('id', `trail-${id}`);
-        path.classList.add("trail")
+        path.classList.add("trail");
         path.setAttribute('fill', 'none');
         path.setAttribute('stroke', 'cyan');
         path.setAttribute('stroke-width', 0.5 * currentZoom);
-        svg.insertBefore(path, svg.firstChild); // Place below aircraft icons
+        trailsLayer.appendChild(path);
     }
 
-    const pointString = points.map(p => `${p.x},${p.y}`).join(' ');
-    path.setAttribute('points', pointString);
+    // Only render latest segment or full if trail is short
+    if (points.length < 2) return;
+
+    let d = `M ${points[0].x},${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+        d += ` L ${points[i].x},${points[i].y}`;
+    }
+
+    path.setAttribute('d', d);
 }
 
 function updateConnector(group){
@@ -253,10 +277,9 @@ function updateConnector(group){
     const bbox = text.getBBox();
     const connector = group.querySelector(".label-connector")
 
+    connector.setAttribute("stroke-width", 0.5 * currentZoom);
+
     const circleCenter = { x: 0, y: 0 }; // center of group is (0, 0)
-
-    // Determine nearest vertical edge
-
 
     // Pick the closest side to center
     const fromX = bbox.x;
@@ -326,6 +349,7 @@ fetch('assets/coast.svg')
 
         svg.appendChild(aircraftLayer);
 
+        /*
         window.addEventListener('resize', () => {
             //update viewBox refence size
             const bbox = svg.getBBox();
@@ -335,7 +359,7 @@ fetch('assets/coast.svg')
             viewBox.y = -viewBox.height / 2;
             initalviewBoxwidth = viewBox.width;
             initalviewBoxheight = viewBox.height;
-        });
+        }); */
         
         let isPanning = false;
         let start = { x: 0, y: 0};
