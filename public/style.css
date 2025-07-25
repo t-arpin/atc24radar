@@ -180,8 +180,8 @@ a {
     padding: 6px 10px;
     height: 40px;
     cursor: pointer;
-    outline: none;
     text-align: center;
+    outline: none;
     appearance: none; /* Remove default styling in some browsers */
 }
 

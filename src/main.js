@@ -9,7 +9,20 @@ const groundButton = document.getElementById('ground-button');
 const chartsButton = document.getElementById('charts-button');
 const groundAircraftButton = document.getElementById('ground-aircraft');
 const airportSelector = document.getElementById('airport-dropdown');
+const groundDisplayButton = document.getElementById('groundview-button');
 
+console.log(groundDisplayButton);
+document.addEventListener('DOMContentLoaded', () => {
+    const groundDisplayButton = document.getElementById('groundview-button');
+
+    if (groundDisplayButton) {
+        groundDisplayButton.addEventListener('click', () => {
+            alert('clicked');
+        });
+    } else {
+        console.warn('groundview-button not found');
+    }
+});
 
 //websocket localhost port
 const PORT = 4000;
@@ -61,7 +74,7 @@ airportSelector.addEventListener('change', () => {
             if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
 
             loaded.setAttribute('id', 'groundview-svg');
-            loaded.style.display = groundViewVisible ? 'block' : 'none';
+            loaded.style.display = groundViewVisible ? 'block' : 'block';
 
             const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
 
