@@ -117,13 +117,14 @@ a {
     border: 3px solid #4B5DA3;
     border-radius: 8px;
     padding: 1px;
+    width: 80px;
 }
 
 #ground-aircraft {
     background-color: #4d4d4d;
     border: 3px solid #4B5DA3;
     border-radius: 8px;
-    width: 90px;
+    width: 80px;
     padding: 1px;
 }
 
@@ -170,6 +171,33 @@ a {
     border-bottom-left-radius: 20px;
 }
 
-#airspace-bounds {
-    width: 90px;
+#airport-dropdown {
+    background-color: #3e3e3e;
+    color: #fff;
+    font-family: ui-monospace, "Cascadia Mono", monospace;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    height: 40px;
+    cursor: pointer;
+    outline: none;
+    text-align: center;
+    appearance: none; /* Remove default styling in some browsers */
+}
+
+.dropdown-label {
+    width: 58px;
+    margin-left: 10px;
+    font-size: .8em;
+}
+
+#ground-button {
+    background-color: #3e3e3e;
+    height: 40px;
+    width: 65px;
+}
+
+#approch-button {
+    background-color: #3e3e3e;
+    height: 40px;
 }

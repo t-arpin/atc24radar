@@ -5,9 +5,11 @@ const timeButton = document.getElementById('time-button');
 const airspaceButton = document.getElementById('airspace-bounds');
 const displayButton = document.getElementById('display-button');
 const resizer = document.getElementById('resizer');
-const groundviewButton = document.getElementById('groundview-button');
+const groundButton = document.getElementById('ground-button');
 const chartsButton = document.getElementById('charts-button');
 const groundAircraftButton = document.getElementById('ground-aircraft');
+const airportSelector = document.getElementById('airport-dropdown');
+
 
 //websocket localhost port
 const PORT = 4000;
@@ -22,6 +24,8 @@ let aircraftData = {};
 let groundAircraftHidden = false;
 let labelPadding = 50;
 let defaultLabelOffset = 10;
+let groundViewVisible = false;
+let currentGroundSvg = null;
 const aircraftTrails = {}; // Keyed by aircraft ID, array of positions
 const maxTrailLength = 15; // Limit the number of trail points
 
@@ -33,6 +37,65 @@ function updateTime() {
         : now.toLocaleTimeString();
 }
 setInterval(updateTime, 1000);
+
+airportSelector.addEventListener('change', () => {
+    const folder = airportSelector.value;
+    const svgPath = `assets/maps/${folder}/GROUND.svg`;
+
+    fetch(svgPath)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load ground SVG: ' + response.status);
+            return response.text();
+        })
+        .then(svgText => {
+            // Remove existing ground SVG
+            const existing = document.getElementById('groundview-svg');
+            if (existing) {
+                existing.parentNode.removeChild(existing);
+            }
+
+            const mapSvg = document.getElementById('boundaries-svg');
+            mapSvg.innerHTML += svgText;
+
+            const loaded = mapSvg.querySelector('svg:last-of-type');
+            if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
+
+            loaded.setAttribute('id', 'groundview-svg');
+            loaded.style.display = groundViewVisible ? 'block' : 'none';
+
+            const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+
+            allShapes.forEach(el => {
+                // Remove Inkscape-style inline fill and style
+                el.removeAttribute('fill');
+                el.removeAttribute('style');
+
+                // Set a clean white stroke and no fill
+                el.setAttribute('fill', 'none');
+                el.setAttribute('stroke', '#000000');
+                el.setAttribute('stroke-width', 1.5 * currentZoom); // Adjust stroke thickness as needed
+            });
+
+            document.addEventListener('wheel', e => {
+                const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+
+                allShapes.forEach(el => {
+                    // Remove Inkscape-style inline fill and style
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+
+                    // Set a clean white stroke and no fill
+                    el.setAttribute('fill', 'none');
+                    el.setAttribute('stroke', '#000000');
+                    el.setAttribute('stroke-width', 1.5 * currentZoom); // Adjust stroke thickness as needed
+                });
+            });
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error loading groundview: ' + err.message);
+        });
+});
 
 timeButton.addEventListener('click', () => {
     zuluTime = !zuluTime;
@@ -52,6 +115,19 @@ groundAircraftButton.addEventListener('click', () => {
     updateAircraftLayer(aircraftData);
     groundAircraftButton.style.background = !groundAircraftHidden ? '#4d4d4d' : '#3E3E3E';
     groundAircraftButton.style.border = !groundAircraftHidden ? '3px solid #4B5DA3' : 'none';
+});
+
+groundButton.addEventListener('click', () => {
+    groundViewVisible = !groundViewVisible;
+
+    const groundSvg = document.getElementById('groundview-svg');
+    console.log(groundSvg);
+    if (groundSvg) {
+        groundSvg.style.display = groundViewVisible ? 'block' : 'none';
+    }
+
+    groundButton.style.background = groundViewVisible ? '#4d4d4d' : '#3E3E3E';
+    groundButton.style.border = groundViewVisible ? '3px solid #4B5DA3' : 'none';
 });
 
 displayButton.addEventListener('click', () => {
@@ -245,6 +321,8 @@ function updateAircraftLayer(aircraftData) {
 
     //console.log(aircraftElements);
 }
+
+
 
 function drawTrail(id, points) {
     const svg = document.getElementById('map-svg');
