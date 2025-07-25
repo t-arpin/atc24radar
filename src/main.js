@@ -22,6 +22,8 @@ let aircraftData = {};
 let groundAircraftHidden = false;
 let labelPadding = 50;
 let defaultLabelOffset = 10;
+const aircraftTrails = {}; // Keyed by aircraft ID, array of positions
+const maxTrailLength = 50; // Limit the number of trail points
 
 // Update time display every second
 function updateTime() {
@@ -75,17 +77,6 @@ socket.onmessage = event => {
 };
 
 socket.onerror = err => console.error('WebSocket error:', err);
-
-function createPlaneIcon(player = '0', callsign = '0', alt = '0', speed = '0', heading = '0', type = '0') {
-    const planeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    planeIcon.setAttribute('id', player);
-    planeIcon.setAttribute('callsign', callsign);
-    planeIcon.setAttribute('alt', alt);
-    planeIcon.setAttribute('speed', speed);
-    planeIcon.setAttribute('heading', heading);
-    planeIcon.setAttribute('type', type);
-    return planeIcon;
-}
 
 //aircraft fetures
 let aircraftElements = {}; // Maps aircraft ID to <g> element
@@ -186,6 +177,20 @@ function updateAircraftLayer(aircraftData) {
 
         //update position
         group.setAttribute('transform', `translate(${x/100}, ${y/100})`);
+
+        // Update trails
+        if (!aircraftTrails[id]) {
+            aircraftTrails[id] = [];
+        }
+
+        aircraftTrails[id].push({ x: x / 100, y: y / 100 });
+
+        if (aircraftTrails[id].length > maxTrailLength) {
+            aircraftTrails[id].shift(); // Keep trail length manageable
+        }
+
+        drawTrail(id, aircraftTrails[id])
+
         //hide/show ground aircraft
         group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
 
@@ -194,7 +199,9 @@ function updateAircraftLayer(aircraftData) {
         
         document.addEventListener('wheel', e => {
             updateLabel(group, info, id);
-            group.querySelector(".label-connector").setAttribute("stroke-width", 0.5 * currentZoom);
+            document.querySelectorAll('.trail').forEach(trail => {
+                trail.setAttribute('stroke-width', 1 * currentZoom);
+            });
         });
     }
 
@@ -207,10 +214,38 @@ function updateAircraftLayer(aircraftData) {
             }
             delete aircraftElements[id];
             console.log(`Removed aircraft ${id}`);
+
+            // Also remove trail
+            const trail = document.getElementById(`trail-${id}`);
+            if (trail && trail.parentNode) {
+                trail.parentNode.removeChild(trail);
+            }
+
+            delete aircraftTrails[id];
+            console.log(`Removed aircraft ${id}`);
         }
     }
 
     //console.log(aircraftElements);
+}
+
+function drawTrail(id, points) {
+    const svg = document.getElementById('map-svg');
+    let path = document.getElementById(`trail-${id}`);
+
+    // Create path if it doesn't exist
+    if (!path) {
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        path.setAttribute('id', `trail-${id}`);
+        path.classList.add("trail")
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', 'cyan');
+        path.setAttribute('stroke-width', 0.5 * currentZoom);
+        svg.insertBefore(path, svg.firstChild); // Place below aircraft icons
+    }
+
+    const pointString = points.map(p => `${p.x},${p.y}`).join(' ');
+    path.setAttribute('points', pointString);
 }
 
 function updateConnector(group){
@@ -239,7 +274,7 @@ function updateLabel(group, info, id){
 
     text.innerHTML = `
         <tspan dx="0" dy="0em" id="tspan1">${id}</tspan>
-        <tspan dx="0" dy="0em" id="tspan2">${info.altitude}ㅤ${info.speed}</tspan>
+        <tspan dx="0" dy="0em" id="tspan2">${info.altitude}ftㅤ${info.speed}kt</tspan>
     `;
 
     const tspan1 = text.querySelector("#tspan1").getBBox().width;
@@ -248,8 +283,8 @@ function updateLabel(group, info, id){
     // Now update the text content with aligned tspans
     text.innerHTML = `
         <tspan dx="0" dy="0em">${id}</tspan>
-        <tspan dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ㅤ${info.speed}</tspan>
-        <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}ㅤ${info.aircraftType}</tspan>
+        <tspan dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ftㅤ${info.speed}kt</tspan>
+        <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}°ㅤㅤ${info.aircraftType}</tspan>
     `;
 }
 
