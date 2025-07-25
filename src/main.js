@@ -10,19 +10,8 @@ const chartsButton = document.getElementById('charts-button');
 const groundAircraftButton = document.getElementById('ground-aircraft');
 const airportSelector = document.getElementById('airport-dropdown');
 const groundDisplayButton = document.getElementById('groundview-button');
-
-console.log(groundDisplayButton);
-document.addEventListener('DOMContentLoaded', () => {
-    const groundDisplayButton = document.getElementById('groundview-button');
-
-    if (groundDisplayButton) {
-        groundDisplayButton.addEventListener('click', () => {
-            alert('clicked');
-        });
-    } else {
-        console.warn('groundview-button not found');
-    }
-});
+const infoOverlay = document.getElementById('info-overlay');
+const closeButton = document.getElementById('close-icon');
 
 //websocket localhost port
 const PORT = 4000;
@@ -30,7 +19,8 @@ const PORT = 4000;
 let zuluTime = false;
 let airspaceBoundsVisible = true;
 let sideDisplayToggle = false;
-let isDragging = false;
+let isDraggingLabel = false;
+let isDraggingOverlay = false;
 let currentZoom = 1;
 let labelFontSize = 10;
 let aircraftData = {};
@@ -39,8 +29,12 @@ let labelPadding = 50;
 let defaultLabelOffset = 10;
 let groundViewVisible = false;
 let currentGroundSvg = null;
-const aircraftTrails = {}; // Keyed by aircraft ID, array of positions
-const maxTrailLength = 15; // Limit the number of trail points
+let start = { x: 0, y: 0};
+let offsetInfoOverlay = { x: 0, y: 0 };
+let overlayVisable = false;
+let curentAircraftId = null;
+const aircraftTrails = {};
+const maxTrailLength = 15;
 
 // Update time display every second
 function updateTime() {
@@ -50,6 +44,47 @@ function updateTime() {
         : now.toLocaleTimeString();
 }
 setInterval(updateTime, 1000);
+
+infoOverlay.addEventListener('mousedown', e => {
+    if (e.button == 0){
+        isDraggingOverlay = true;
+        start = { x: e.clientX, y: e.clientY };
+        e.preventDefault();
+    }
+});
+
+infoOverlay.addEventListener('mousemove', e => {
+    if (!isDraggingOverlay) return;
+
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+
+    infoOverlay.style.transform = `translate(${offsetInfoOverlay.x + dx}px, ${offsetInfoOverlay.y + dy}px)`;
+    console.log(dx, dy);
+});
+
+document.addEventListener('mouseup', () => {
+    if (isDraggingOverlay) {
+        const style = window.getComputedStyle(infoOverlay).transform;
+        const matrix = new DOMMatrix(style);
+        offsetInfoOverlay.x = matrix.m41;
+        offsetInfoOverlay.y = matrix.m42;
+    }
+
+    isDraggingOverlay = false;
+});
+
+function displayOverlay(id, info) {
+    if (curentAircraftId == id){
+        curentAircraftId = null;
+        infoOverlay.style.display = 'none'
+        return;
+    } else {
+        curentAircraftId = id;
+        infoOverlay.style.display = 'block'
+    }
+    console.log(curentAircraftId);
+}
 
 airportSelector.addEventListener('change', () => {
     const folder = airportSelector.value;
@@ -74,7 +109,7 @@ airportSelector.addEventListener('change', () => {
             if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
 
             loaded.setAttribute('id', 'groundview-svg');
-            loaded.style.display = groundViewVisible ? 'block' : 'block';
+            loaded.style.display = groundViewVisible ? 'block' : 'none';
 
             const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
 
@@ -86,7 +121,8 @@ airportSelector.addEventListener('change', () => {
                 // Set a clean white stroke and no fill
                 el.setAttribute('fill', 'none');
                 el.setAttribute('stroke', '#000000');
-                el.setAttribute('stroke-width', 1.5 * currentZoom); // Adjust stroke thickness as needed
+                el.setAttribute('stroke-width', currentZoom * 1); // Adjust stroke thickness as needed
+            
             });
 
             document.addEventListener('wheel', e => {
@@ -100,7 +136,7 @@ airportSelector.addEventListener('change', () => {
                     // Set a clean white stroke and no fill
                     el.setAttribute('fill', 'none');
                     el.setAttribute('stroke', '#000000');
-                    el.setAttribute('stroke-width', 1.5 * currentZoom); // Adjust stroke thickness as needed
+                    el.setAttribute('stroke-width', currentZoom * 1); // Adjust stroke thickness as needed
                 });
             });
         })
@@ -128,6 +164,11 @@ groundAircraftButton.addEventListener('click', () => {
     updateAircraftLayer(aircraftData);
     groundAircraftButton.style.background = !groundAircraftHidden ? '#4d4d4d' : '#3E3E3E';
     groundAircraftButton.style.border = !groundAircraftHidden ? '3px solid #4B5DA3' : 'none';
+});
+
+closeButton.addEventListener('click', () => {
+    curentAircraftId = null;
+    infoOverlay.style.display = 'none';
 });
 
 groundButton.addEventListener('click', () => {
@@ -225,14 +266,14 @@ function updateAircraftLayer(aircraftData) {
             //event listeners for moveing
             label.addEventListener('mousedown', e => {
                 if (e.button == 0){
-                    isDragging = true;
+                    isDraggingLabel = true;
                     start = { x: e.clientX, y: e.clientY };
                     e.preventDefault();
                 }
             });
 
             label.addEventListener('mousemove', e => {
-                if (!isDragging) return;
+                if (!isDraggingLabel) return;
                 let adjustX = 1;
                 let adjustY = 1;
                 
@@ -260,7 +301,11 @@ function updateAircraftLayer(aircraftData) {
             });
 
             document.addEventListener('mouseup', e => {
-                isDragging = false;
+                isDraggingLabel = false;
+            });
+
+            label.addEventListener("dblclick", function () {
+                displayOverlay(id, info);
             });
 
             group.appendChild(icon);

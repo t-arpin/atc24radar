@@ -49,7 +49,6 @@ html, body, #svg-container {
     height: 100vh;
     width: auto;
     z-index: 1;
-
 }
 
 svg {
@@ -200,4 +199,39 @@ a {
 #approch-button {
     background-color: #3e3e3e;
     height: 40px;
+}
+
+.overlay {
+    position: fixed;
+    display: block;
+    bottom: 200px;
+    right: 200px;
+    width: 200px;
+    height: 300px;
+    background: #222222;
+    border: 3px solid #333333;
+    outline: 5px solid #222222;
+    border-radius: 5px;
+    padding: 5px;
+    z-index: 9999;
+}
+
+#close-icon {
+    width: 15px;
+    height: 15px;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    cursor: pointer;
+}
+
+#name-bar {
+    width: 90%;
+    height: 30px;
+    background-color: white;
+}
+
+#aircraft-image {
+    background-color: white;
+    height: 112.50px;
 }
