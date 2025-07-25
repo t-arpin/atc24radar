@@ -20,6 +20,8 @@ let currentZoom = 1;
 let labelFontSize = 10;
 let aircraftData = {};
 let groundAircraftHidden = false;
+let labelPadding = 50;
+let defaultLabelOffset = 10;
 
 // Update time display every second
 function updateTime() {
@@ -68,20 +70,10 @@ const socket = new WebSocket(`ws://localhost:${PORT}`);
 
 socket.onmessage = event => {
     const data = JSON.parse(event.data);
-    //console.clear();
     aircraftData = data;
     updateAircraftLayer(aircraftData);
-    /*console.log('=== Aircraft Data ===');
-    for (const callsign in data) {
-        const acft = data[callsign];
-        console.log(`\nCallsign: ${callsign}`);
-        console.log(`  Player: ${acft.playerName}`);
-        console.log(`  Type: ${acft.aircraftType}`);
-        console.log(`  Alt: ${acft.altitude} ft`);
-        console.log(`  Speed: ${acft.speed} knots`);
-        console.log(`  Position: x=${acft.position.x}, y=${acft.position.y}`);
-    }*/
 };
+
 socket.onerror = err => console.error('WebSocket error:', err);
 
 function createPlaneIcon(player = '0', callsign = '0', alt = '0', speed = '0', heading = '0', type = '0') {
@@ -133,51 +125,77 @@ function updateAircraftLayer(aircraftData) {
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("fill", "white");
             label.setAttribute("font-size", labelFontSize);
-            label.setAttribute('font-size', labelFontSize / currentZoom);
+            label.setAttribute('font-size', labelFontSize * currentZoom);
             label.classList.add("aircraft-label");
-            label.setAttribute("x", 10 * currentZoom); // offset for label
+            label.setAttribute("x", defaultLabelOffset * currentZoom); // offset for label
             label.setAttribute("y", 0); // offset for label
+
+            const connector = document.createElementNS("http://www.w3.org/2000/svg", "line")
+            connector.setAttribute("stroke", "white");
+            connector.setAttribute("stroke-width", 0.5);
+            connector.classList.add("label-connector");
 
             //event listeners for moveing
             label.addEventListener('mousedown', e => {
-                console.log('Dragging label');
-                isDragging = true;
-                start = { x: e.clientX, y: e.clientY };
-                e.preventDefault();
+                if (e.button == 0){
+                    isDragging = true;
+                    start = { x: e.clientX, y: e.clientY };
+                    e.preventDefault();
+                }
             });
 
             label.addEventListener('mousemove', e => {
                 if (!isDragging) return;
+                let adjustX = 1;
+                let adjustY = 1;
+                
+                if (window.innerWidth < svg.getAttribute('width')) {
+                     adjustX = svg.getAttribute('width') / window.innerWidth;
+                }
+
+                if (window.innerHeight < svg.getAttribute('height')) {
+                     adjustY = svg.getAttribute('height') / window.innerHeight;
+                }
 
                 const dx = e.clientX - start.x;
                 const dy = e.clientY - start.y;
 
                 start.x = e.clientX;
                 start.y = e.clientY;
-                
-                label.setAttribute("x", (parseFloat(label.getAttribute('x')) + dx) * currentZoom);
-                label.setAttribute("y", (parseFloat(label.getAttribute('y')) + dy) * currentZoom);
+
+                const x = parseFloat(label.getAttribute('x')) + dx * currentZoom * adjustX;
+                const y = parseFloat(label.getAttribute('y')) + dy * currentZoom * adjustY;
+                label.setAttribute('x', x);
+                label.setAttribute('y', y);
+
+                //connector
+                updateConnector(group);
             });
 
-            label.addEventListener('mouseup', e => {
-                isDragging = false;
-            });
-            label.addEventListener('mouseleave', () => {
+            document.addEventListener('mouseup', e => {
                 isDragging = false;
             });
 
             group.appendChild(icon);
             group.appendChild(label);
+            group.insertBefore(connector, group.firstChild);
             svg.appendChild(group);
 
             aircraftElements[id] = group;
         }
 
-        // Update position
+        //update position
         group.setAttribute('transform', `translate(${x/100}, ${y/100})`);
+        //hide/show ground aircraft
         group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
-        group.querySelector("text").textContent = id;
 
+        //label stuff
+        updateLabel(group, info, id);
+        
+        document.addEventListener('wheel', e => {
+            updateLabel(group, info, id);
+            group.querySelector(".label-connector").setAttribute("stroke-width", 0.5 * currentZoom);
+        });
     }
 
     // Remove aircraft no longer in the data
@@ -193,6 +211,46 @@ function updateAircraftLayer(aircraftData) {
     }
 
     //console.log(aircraftElements);
+}
+
+function updateConnector(group){
+    const text = group.querySelector("text")
+    const bbox = text.getBBox();
+    const connector = group.querySelector(".label-connector")
+
+    const circleCenter = { x: 0, y: 0 }; // center of group is (0, 0)
+
+    // Determine nearest vertical edge
+
+
+    // Pick the closest side to center
+    const fromX = bbox.x;
+    const fromY = bbox.y + bbox.height / 2;
+
+    // Set line attributes (converted into group-relative coords)
+    connector.setAttribute("x1", fromX);
+    connector.setAttribute("y1", fromY);
+    connector.setAttribute("x2", circleCenter.x);
+    connector.setAttribute("y2", circleCenter.y);
+}
+
+function updateLabel(group, info, id){
+    const text = group.querySelector("text")
+
+    text.innerHTML = `
+        <tspan dx="0" dy="0em" id="tspan1">${id}</tspan>
+        <tspan dx="0" dy="0em" id="tspan2">${info.altitude}ㅤ${info.speed}</tspan>
+    `;
+
+    const tspan1 = text.querySelector("#tspan1").getBBox().width;
+    const tspan2 = text.querySelector("#tspan2").getBBox().width;
+
+    // Now update the text content with aligned tspans
+    text.innerHTML = `
+        <tspan dx="0" dy="0em">${id}</tspan>
+        <tspan dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ㅤ${info.speed}</tspan>
+        <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}ㅤ${info.aircraftType}</tspan>
+    `;
 }
 
 window.addEventListener('resize', () => {
@@ -321,8 +379,7 @@ fetch('assets/coast.svg')
 
             const labels = svg.querySelectorAll('.aircraft-label');
             labels.forEach(label => {
-                label.setAttribute('font-size', 10 * currentZoom);
-                label.setAttribute("x", 10 * currentZoom);
+                label.setAttribute('font-size', label.getAttribute('font-size') * delta);
             });
 
             currentZoom *= delta;
