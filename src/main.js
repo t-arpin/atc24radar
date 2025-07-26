@@ -2,6 +2,7 @@ import AirlineMapJson from "/src/data/AirlineMap.js";
 import AcftTypeMapJson from "/src/data/AcftTypeMap.js";
 import CallsignMapJson from "/src/data/callsignMap.js";
 import StationMap from "/src/data/StationMap.js";
+import AirportNamesMap from "/src/data/AirportNamesMap.js";
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -23,6 +24,7 @@ const airlineMap = new Map(Object.entries(AirlineMapJson));
 const acftTypeMap = new Map(Object.entries(AcftTypeMapJson));
 const callsignMap = new Map(Object.entries(CallsignMapJson));
 const stationMap = new Map(Object.entries(StationMap));
+const airportNamesMap = new Map(Object.entries(AirportNamesMap));
 
 //svg
 const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
@@ -110,6 +112,20 @@ function updateOverlay(id, info) {
     const number = callsignParts[1];
 
     const icon = info.isOnGround ? onGroundSVG : inFlightSVG;
+    if (info.flightPlan != null){
+        infoOverlay.querySelector('#route-container').innerHTML = `
+            <div id="departure" class="route">
+                ${info.flightPlan.departing}
+                <span class="airport-name">${airportNamesMap.get(info.flightPlan.departing)}</span>
+            </div>
+            <div id="arival" class="route">
+                ${info.flightPlan.arriving}
+                <span class="airport-name">${airportNamesMap.get(info.flightPlan.arriving)}</span>
+            </div>
+            <div id="plane-icon-container"></div>`
+    } else {
+        infoOverlay.querySelector('#route-container').innerHTML = `<div id="departure" class="route">N/A<span class="airport-name">Not available</span></div><div id="arival" class="route">N/A<span class="airport-name">Not available</span></div><div id="plane-icon-container"></div>`;
+    }
 
     infoOverlay.querySelector('#callsign-bar').innerHTML = callsignMap.get(carrier) + number;
     infoOverlay.querySelector('#player-name').innerHTML = info.playerName;
@@ -261,19 +277,9 @@ const socket = new WebSocket(`ws://localhost:${PORT}`);
 socket.onmessage = event => {
     const message = JSON.parse(event.data);
 
-    switch (message.type) {
-        case 'AIRCRAFT_DATA':
-            aircraftData = message.data;
-            updateAircraftLayer(aircraftData);
-            break;
-
-        case 'FLIGHT_PLAN':
-            console.log('Received flight plan:', message.data);
-            // Optionally update UI or store the flight plan data
-            break;
-
-        default:
-            console.warn('Unknown message type:', message.type);
+    if (message.type === 'ENRICHED_AIRCRAFT_DATA') {
+        const enrichedAircraftMap = message.data; // object with callsign keys
+        updateAircraftLayer(enrichedAircraftMap);
     }
 };
 
@@ -305,6 +311,14 @@ function updateAircraftLayer(aircraftData) {
         const speed = info.speed;
         const isOnGround = info.isOnGround;
 
+        const flightPlan = info.flightPlan
+
+        /*  const flightrules = flightPlan.flightrules;
+            const departing = flightPlan.departing;
+            const arriving = flightPlan.arriving;
+            const route = flightPlan.route;
+            const flightlevel = flightPlan.flightlevel; */
+
         newIds.add(id);
 
         let group = aircraftElements[id];
@@ -314,7 +328,7 @@ function updateAircraftLayer(aircraftData) {
             console.log(`Creating new group for aircraft ${id}`);
             group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.setAttribute('id', `ac-${id}`);
-
+            
             const icon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             icon.setAttribute('r', 2);
             icon.setAttribute('r', parseFloat(icon.getAttribute('r')) * currentZoom);
@@ -339,7 +353,6 @@ function updateAircraftLayer(aircraftData) {
                 if (e.button == 0){
                     isDraggingLabel = { bool: true, label: label};
                     start = { x: e.clientX, y: e.clientY };
-                    console.log(start);
                     e.preventDefault();
                 }
             });
@@ -373,8 +386,6 @@ function updateAircraftLayer(aircraftData) {
         //update position
         group.setAttribute('transform', `translate(${x/100}, ${y/100})`);
 
-        group.querySelectorAll
-
         //handle trails only if aircraft is not on the ground
         if (!isOnGround) {
             if (!aircraftTrails[id]) {
@@ -406,6 +417,7 @@ function updateAircraftLayer(aircraftData) {
         if (id == curentAircraftId){
             updateOverlay(id, info);
         }
+        console.log(info.flightPlan);
     }
 
     // Remove aircraft no longer in the data
@@ -457,7 +469,6 @@ function labelMove(e, label, svg, group, start){
     const y = parseFloat(label.getAttribute('y')) + dy * currentZoom * adjustY;
     label.setAttribute('x', x);
     label.setAttribute('y', y);
-    console.log(dx, dy);
 
     //connector
     updateConnector(group);
@@ -523,10 +534,22 @@ function updateLabel(group, info, id){
     if (info.isOnGround && currentZoom > 0.09651739612301583) {
 
         text.innerHTML = '';
+        group.querySelector(".label-connector").setAttribute('display', 'none');
         return;
     }
+    group.querySelector(".label-connector").setAttribute('display', 'block');
 
-    const color = info.isOnGround ? '#48b8fb' : 'white';
+    let color = 'white'
+
+    if (info.flightPlan != null){
+        if (info.flightPlan.departing == airportSelector.value){
+            color = '#48b8fb';
+        }
+        if (info.flightPlan.arriving == airportSelector.value){
+            color = '#fce241';
+        }
+    }
+    
     text.setAttribute("fill", color);
     
     const callsignParts = id.split("-");
