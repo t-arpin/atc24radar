@@ -61,16 +61,6 @@ svg {
     -webkit-user-drag: none;
 }
 
-#plane-icon {
-    position: relative;
-    cx: 0;
-    cy: 0;
-    r: 20;
-    fill: blue;
-    cursor: pointer;
-    left: 100px;
-}
-
 #top-bar {
     position: absolute;
     top: 3vh;
@@ -203,7 +193,7 @@ a {
 
 .overlay {
     position: fixed;
-    display: block;
+    display: none;
     bottom: 200px;
     right: 200px;
     width: 200px;
@@ -214,6 +204,7 @@ a {
     border-radius: 5px;
     padding: 5px;
     z-index: 9999;
+    color: white;
 }
 
 #close-icon {
@@ -225,13 +216,95 @@ a {
     cursor: pointer;
 }
 
-#name-bar {
+#callsign-container {
+    display: flex;
     width: 90%;
-    height: 30px;
-    background-color: white;
+    height: auto;
+    align-items: center;
+    gap: 5px;
+}
+
+#aircraft-tag {
+    font-size: .6em;
+    background-color: #333333;
+    padding: 2px;
+    padding-inline: 5px;
+    border-radius: 5px;
+}
+
+#player-name {
+    display: flex;
+    width: 90%;
+    height: 15px;
+    align-items: center;
+    font-size: .6em;
+    margin-bottom: 4px;
 }
 
 #aircraft-image {
-    background-color: white;
+    background-color: rgb(5, 5, 5);
     height: 112.50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+
+#route-container {
+    height: 60px;
+    display: flex;
+}
+
+.route {
+    background-color: rgb(22, 22, 22);
+    width: 50%;
+    border-right: 2px solid #222222;
+    padding-top: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    font-size: 1.4em;
+    border-radius: 5px;
+}
+
+.airport-name {
+    font-size: .4em;
+}
+
+#arival {
+    border-left: 2px solid #222222;
+    border-right: none;
+}
+
+#detailed-info-container {
+    height: auto;
+    margin-top: 4px;
+    font-size: .6em;
+    display: flex;
+}
+
+#detailed-info {
+    height: auto;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+#plane-icon {
+    width: 30px;
+    height: 30px;
+    left: 90px;
+    top: 175px;
+    position: absolute;
+}
+
+#details-spacer {
+    width: 10px;
+    background-color: rgb(22, 22, 22);
+    border-right: 2px solid rgb(22, 22, 22);
+    margin-right: 5px;
+    height: 78px;
+    border-radius: 5px;
 }

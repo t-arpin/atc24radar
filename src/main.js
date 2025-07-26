@@ -1,3 +1,7 @@
+import AirlineMapJson from "/src/data/AirlineMap.js";
+import AcftTypeMapJson from "/src/data/AcftTypeMap.js";
+import CallsignMapJson from "/src/data/callsignMap.js";
+
 //html elements
 const container = document.getElementById('svg-container');
 const timeDisplay = document.getElementById('time');
@@ -12,6 +16,11 @@ const airportSelector = document.getElementById('airport-dropdown');
 const groundDisplayButton = document.getElementById('groundview-button');
 const infoOverlay = document.getElementById('info-overlay');
 const closeButton = document.getElementById('close-icon');
+
+//maps
+const airlineMap = new Map(Object.entries(AirlineMapJson));
+const acftTypeMap = new Map(Object.entries(AcftTypeMapJson));
+const callsignMap = new Map(Object.entries(CallsignMapJson));
 
 //websocket localhost port
 const PORT = 4000;
@@ -31,7 +40,6 @@ let groundViewVisible = false;
 let currentGroundSvg = null;
 let start = { x: 0, y: 0};
 let offsetInfoOverlay = { x: 0, y: 0 };
-let overlayVisable = false;
 let curentAircraftId = null;
 const aircraftTrails = {};
 const maxTrailLength = 15;
@@ -70,7 +78,6 @@ document.addEventListener('mouseup', () => {
         offsetInfoOverlay.x = matrix.m41;
         offsetInfoOverlay.y = matrix.m42;
     }
-
     isDraggingOverlay = false;
 });
 
@@ -83,7 +90,29 @@ function displayOverlay(id, info) {
         curentAircraftId = id;
         infoOverlay.style.display = 'block'
     }
-    console.log(curentAircraftId);
+
+    updateOverlay(id, info)
+}
+
+function updateOverlay(id, info) {
+    const callsignParts = id.split("-");
+    const carrier = callsignParts[0];
+    const number = callsignParts[1];
+
+    infoOverlay.querySelector('#callsign-bar').innerHTML = callsignMap.get(carrier) + number;
+    infoOverlay.querySelector('#player-name').innerHTML = info.playerName;
+    infoOverlay.querySelector('#aircraft-tag').innerHTML = acftTypeMap.get(info.aircraftType);
+    infoOverlay.querySelector("#detailed-info").innerHTML = `
+                <span style="margin-bottom: 4px;">${airlineMap.get(carrier)}</span>
+                <span>Aircraft Type : (${acftTypeMap.get(info.aircraftType)})</span>
+                <span>${info.aircraftType}</span>
+                <hr style="width: 100%;"></hr>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Altitude: ${info.altitude}ft</span>
+                    <span >Heading: ${info.heading}°</span>
+                    <span >Speed: ${info.speed}kt</span>
+                </div>
+    `;
 }
 
 airportSelector.addEventListener('change', () => {
@@ -354,6 +383,10 @@ function updateAircraftLayer(aircraftData) {
 
         //label stuff
         updateLabel(group, info, id);
+
+        if (id == curentAircraftId){
+            updateOverlay(id, info);
+        }
     }
 
     // Remove aircraft no longer in the data
@@ -431,8 +464,13 @@ function updateConnector(group){
 function updateLabel(group, info, id){
     const text = group.querySelector("text")
 
+    const callsignParts = id.split("-");
+    const carrier = callsignParts[0];
+    const number = callsignParts[1];
+
+
     text.innerHTML = `
-        <tspan dx="0" dy="0em" id="tspan1">${id}</tspan>
+        <tspan dx="0" dy="0em" id="tspan1">${callsignMap.get(carrier) + number}</tspan>
         <tspan dx="0" dy="0em" id="tspan2">${info.altitude}ftㅤ${info.speed}kt</tspan>
     `;
 
@@ -441,9 +479,9 @@ function updateLabel(group, info, id){
 
     // Now update the text content with aligned tspans
     text.innerHTML = `
-        <tspan dx="0" dy="0em">${id}</tspan>
+        <tspan dx="0" dy="0em">${callsignMap.get(carrier) + number}</tspan>
         <tspan dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ftㅤ${info.speed}kt</tspan>
-        <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}°ㅤㅤ${info.aircraftType}</tspan>
+        <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}°ㅤㅤ${acftTypeMap.get(info.aircraftType)}</tspan>
     `;
 }
 

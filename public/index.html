@@ -56,9 +56,40 @@
             <line x1="13" y1="13" x2="27" y2="27" stroke="#80060d" stroke-width="3" stroke-linecap="round" />
             <line x1="27" y1="13" x2="13" y2="27" stroke="#80060d" stroke-width="3" stroke-linecap="round" />
         </svg>
-        <div id="name-bar"></div>
+        <div id="callsign-container">
+            <div id="callsign-bar">Example-1234</div>
+            <div id="aircraft-tag">A320</div>
+        </div>
+        <div id="player-name">Tristan3D3</div>
         <div id="aircraft-image">
-            <img></img>
+            <img>Comming soon...</img>
+        </div>
+        <div id="route-container">
+            <div id="departure" class="route">
+                N/A
+                <span class="airport-name">Not available</span>
+            </div>
+            <div id="arival" class="route">
+                N/A
+                <span class="airport-name">Not available</span>
+            </div>
+            <svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>
+        </div>
+        <div id="detailed-info-container">
+            <div id="details-spacer">
+            
+            </div>
+            <div id="detailed-info">
+                <span style="margin-bottom: 4px;">Swiss International Air Lines</span>
+                <span>Aircraft Type : (A320)</span>
+                <span>Airbus A320-212</span>
+                <hr style="width: 100%;"></hr>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Altitude: 3000ft</span>
+                    <span >Heading: 300.</span>
+                    <span >Speed: 250kt</span>
+                </div>
+            </div>
         </div>
     </div>
     <button id="display-button" class="menu-button">></button>
