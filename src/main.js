@@ -1,6 +1,7 @@
 import AirlineMapJson from "/src/data/AirlineMap.js";
 import AcftTypeMapJson from "/src/data/AcftTypeMap.js";
 import CallsignMapJson from "/src/data/callsignMap.js";
+import StationMap from "/src/data/StationMap.js";
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -21,6 +22,11 @@ const closeButton = document.getElementById('close-icon');
 const airlineMap = new Map(Object.entries(AirlineMapJson));
 const acftTypeMap = new Map(Object.entries(AcftTypeMapJson));
 const callsignMap = new Map(Object.entries(CallsignMapJson));
+const stationMap = new Map(Object.entries(StationMap));
+
+//svg
+const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
+const onGroundSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane-inflight"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 11.085h5a2 2 0 1 1 0 4h-15l-3 -6h3l2 2h3l-2 -7h3l4 7z" /><path d="M3 21h18" /></svg>`;
 
 //websocket localhost port
 const PORT = 4000;
@@ -28,21 +34,26 @@ const PORT = 4000;
 let zuluTime = false;
 let airspaceBoundsVisible = true;
 let sideDisplayToggle = false;
-let isDraggingLabel = false;
+let isDraggingLabel = { bool: false, label: null};
 let isDraggingOverlay = false;
 let currentZoom = 1;
 let labelFontSize = 10;
 let aircraftData = {};
 let groundAircraftHidden = false;
 let labelPadding = 50;
-let defaultLabelOffset = 10;
+let defaultLabelOffset = 5;
 let groundViewVisible = false;
 let currentGroundSvg = null;
 let start = { x: 0, y: 0};
 let offsetInfoOverlay = { x: 0, y: 0 };
 let curentAircraftId = null;
+let textAlign = 'start';
 const aircraftTrails = {};
 const maxTrailLength = 15;
+
+window.addEventListener('load', function() {
+    loadAirportData(airportSelector);
+});
 
 // Update time display every second
 function updateTime() {
@@ -68,7 +79,6 @@ infoOverlay.addEventListener('mousemove', e => {
     const dy = e.clientY - start.y;
 
     infoOverlay.style.transform = `translate(${offsetInfoOverlay.x + dx}px, ${offsetInfoOverlay.y + dy}px)`;
-    console.log(dx, dy);
 });
 
 document.addEventListener('mouseup', () => {
@@ -99,6 +109,8 @@ function updateOverlay(id, info) {
     const carrier = callsignParts[0];
     const number = callsignParts[1];
 
+    const icon = info.isOnGround ? onGroundSVG : inFlightSVG;
+
     infoOverlay.querySelector('#callsign-bar').innerHTML = callsignMap.get(carrier) + number;
     infoOverlay.querySelector('#player-name').innerHTML = info.playerName;
     infoOverlay.querySelector('#aircraft-tag').innerHTML = acftTypeMap.get(info.aircraftType);
@@ -113,9 +125,14 @@ function updateOverlay(id, info) {
                     <span >Speed: ${info.speed}kt</span>
                 </div>
     `;
+    infoOverlay.querySelector('#plane-icon-container').innerHTML = icon;
 }
 
 airportSelector.addEventListener('change', () => {
+    loadAirportData(airportSelector);
+});
+
+function loadAirportData(airportSelector) {
     const folder = airportSelector.value;
     const svgPath = `assets/maps/${folder}/GROUND.svg`;
 
@@ -173,7 +190,19 @@ airportSelector.addEventListener('change', () => {
             console.error(err);
             alert('Error loading groundview: ' + err.message);
         });
-});
+    
+    const stationCenter = stationMap.get(folder);
+    const stationType = 'CTR';
+    console.log(stationCenter);
+    
+    document.querySelector('#station-info').innerHTML = `
+        ${stationCenter}-${stationType}
+        <select id="station-type">
+            <option value="CTR">null</option>
+            <option value="GND">null</option>
+        </select>
+        `;
+}
 
 timeButton.addEventListener('click', () => {
     zuluTime = !zuluTime;
@@ -230,9 +259,22 @@ displayButton.addEventListener('click', () => {
 const socket = new WebSocket(`ws://localhost:${PORT}`);
 
 socket.onmessage = event => {
-    const data = JSON.parse(event.data);
-    aircraftData = data;
-    updateAircraftLayer(aircraftData);
+    const message = JSON.parse(event.data);
+
+    switch (message.type) {
+        case 'AIRCRAFT_DATA':
+            aircraftData = message.data;
+            updateAircraftLayer(aircraftData);
+            break;
+
+        case 'FLIGHT_PLAN':
+            console.log('Received flight plan:', message.data);
+            // Optionally update UI or store the flight plan data
+            break;
+
+        default:
+            console.warn('Unknown message type:', message.type);
+    }
 };
 
 socket.onerror = err => console.error('WebSocket error:', err);
@@ -285,7 +327,7 @@ function updateAircraftLayer(aircraftData) {
             label.setAttribute('font-size', labelFontSize * currentZoom);
             label.classList.add("aircraft-label");
             label.setAttribute("x", defaultLabelOffset * currentZoom); // offset for label
-            label.setAttribute("y", 0); // offset for label
+            label.setAttribute("y", 2 * currentZoom); // offset for label
 
             const connector = document.createElementNS("http://www.w3.org/2000/svg", "line")
             connector.setAttribute("stroke", "white");
@@ -295,42 +337,17 @@ function updateAircraftLayer(aircraftData) {
             //event listeners for moveing
             label.addEventListener('mousedown', e => {
                 if (e.button == 0){
-                    isDraggingLabel = true;
+                    isDraggingLabel = { bool: true, label: label};
                     start = { x: e.clientX, y: e.clientY };
+                    console.log(start);
                     e.preventDefault();
                 }
             });
 
-            label.addEventListener('mousemove', e => {
-                if (!isDraggingLabel) return;
-                let adjustX = 1;
-                let adjustY = 1;
-                
-                if (window.innerWidth < svg.getAttribute('width')) {
-                     adjustX = svg.getAttribute('width') / window.innerWidth;
-                }
-
-                if (window.innerHeight < svg.getAttribute('height')) {
-                     adjustY = svg.getAttribute('height') / window.innerHeight;
-                }
-
-                const dx = e.clientX - start.x;
-                const dy = e.clientY - start.y;
-
-                start.x = e.clientX;
-                start.y = e.clientY;
-
-                const x = parseFloat(label.getAttribute('x')) + dx * currentZoom * adjustX;
-                const y = parseFloat(label.getAttribute('y')) + dy * currentZoom * adjustY;
-                label.setAttribute('x', x);
-                label.setAttribute('y', y);
-
-                //connector
-                updateConnector(group);
-            });
+            document.addEventListener('mousemove', e => labelMove(e, label, svg, group, start));
 
             document.addEventListener('mouseup', e => {
-                isDraggingLabel = false;
+                isDraggingLabel.bool = false;
             });
 
             label.addEventListener("dblclick", function () {
@@ -356,6 +373,8 @@ function updateAircraftLayer(aircraftData) {
         //update position
         group.setAttribute('transform', `translate(${x/100}, ${y/100})`);
 
+        group.querySelectorAll
+
         //handle trails only if aircraft is not on the ground
         if (!isOnGround) {
             if (!aircraftTrails[id]) {
@@ -369,7 +388,7 @@ function updateAircraftLayer(aircraftData) {
             }
 
             drawTrail(id, aircraftTrails[id]);
-        } else {
+        } else {          
             // If on ground, remove any existing trail
             const trail = document.getElementById(`trail-${id}`);
             if (trail && trail.parentNode) {
@@ -413,7 +432,36 @@ function updateAircraftLayer(aircraftData) {
     //console.log(aircraftElements);
 }
 
+function labelMove(e, label, svg, group, start){
+    if (!isDraggingLabel.bool || isDraggingLabel.label != label) {
+        return;
+    }
+    let adjustX = 1;
+    let adjustY = 1;
+    
+    if (window.innerWidth < svg.getAttribute('width')) {
+            adjustX = svg.getAttribute('width') / window.innerWidth;
+    }
 
+    if (window.innerHeight < svg.getAttribute('height')) {
+            adjustY = svg.getAttribute('height') / window.innerHeight;
+    }
+
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+
+    start.x = e.clientX;
+    start.y = e.clientY;
+
+    const x = parseFloat(label.getAttribute('x')) + dx * currentZoom * adjustX;
+    const y = parseFloat(label.getAttribute('y')) + dy * currentZoom * adjustY;
+    label.setAttribute('x', x);
+    label.setAttribute('y', y);
+    console.log(dx, dy);
+
+    //connector
+    updateConnector(group);
+}
 
 function drawTrail(id, points) {
     const svg = document.getElementById('map-svg');
@@ -449,10 +497,18 @@ function updateConnector(group){
     connector.setAttribute("stroke-width", 0.5 * currentZoom);
 
     const circleCenter = { x: 0, y: 0 }; // center of group is (0, 0)
+    const textWidth = text.querySelector("#tspan2").getBBox().width;
 
-    // Pick the closest side to center
-    const fromX = bbox.x;
-    const fromY = bbox.y + bbox.height / 2;
+    if (textAlign == 'start') {
+        textAlign = bbox.x > 0 ? 'start' : 'end';
+    } else {
+        textAlign = bbox.x + textWidth > 0 ? 'start' : 'end';
+    }
+        
+    text.setAttribute('text-anchor', textAlign);
+
+    const fromX = bbox.x >= 0 ? bbox.x : bbox.x + textWidth;
+    const fromY = bbox.y + 18 * currentZoom;
 
     // Set line attributes (converted into group-relative coords)
     connector.setAttribute("x1", fromX);
@@ -464,6 +520,15 @@ function updateConnector(group){
 function updateLabel(group, info, id){
     const text = group.querySelector("text")
 
+    if (info.isOnGround && currentZoom > 0.09651739612301583) {
+
+        text.innerHTML = '';
+        return;
+    }
+
+    const color = info.isOnGround ? '#48b8fb' : 'white';
+    text.setAttribute("fill", color);
+    
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];
     const number = callsignParts[1];
@@ -480,7 +545,7 @@ function updateLabel(group, info, id){
     // Now update the text content with aligned tspans
     text.innerHTML = `
         <tspan dx="0" dy="0em">${callsignMap.get(carrier) + number}</tspan>
-        <tspan dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ftㅤ${info.speed}kt</tspan>
+        <tspan id="tspan2" dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ftㅤ${info.speed}kt</tspan>
         <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}°ㅤㅤ${acftTypeMap.get(info.aircraftType)}</tspan>
     `;
 }
@@ -613,6 +678,8 @@ fetch('assets/coast.svg')
             const labels = svg.querySelectorAll('.aircraft-label');
             labels.forEach(label => {
                 label.setAttribute('font-size', label.getAttribute('font-size') * delta);
+                label.setAttribute("x", label.getAttribute('x') * delta); 
+                label.setAttribute("y", label.getAttribute('y') * delta); 
             });
 
             currentZoom *= delta;

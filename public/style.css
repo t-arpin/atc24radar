@@ -82,7 +82,7 @@ a {
 }
 
 #name {
-    margin-left: auto;
+    margin-left: 5px;
     margin-right: 20px;
 }
 
@@ -106,15 +106,19 @@ a {
     border: 3px solid #4B5DA3;
     border-radius: 8px;
     padding: 1px;
-    width: 80px;
+    width: 65px;
+    height: 40px;
+    font-size: .7em;
 }
 
 #ground-aircraft {
     background-color: #4d4d4d;
     border: 3px solid #4B5DA3;
     border-radius: 8px;
-    width: 80px;
+    width: 65px;
     padding: 1px;
+    height: 40px;
+    font-size: .7em;
 }
 
 #display-button {
@@ -292,7 +296,7 @@ a {
     width: 100%;
 }
 
-#plane-icon {
+#plane-icon-container {
     width: 30px;
     height: 30px;
     left: 90px;
@@ -307,4 +311,21 @@ a {
     margin-right: 5px;
     height: 100px;
     border-radius: 5px;
+}
+
+#station-info {
+    margin-left: auto;
+    width: 70px;
+    font-size: 14px;
+}
+
+#station-type {
+    font-size: .8em;
+    background-color: #222222;
+    color: #fff;
+    font-family: ui-monospace, "Cascadia Mono", monospace;
+    border: none;
+    width: 0px;
+    cursor: pointer;
+    text-align: left;
 }

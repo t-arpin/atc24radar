@@ -5,7 +5,7 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css">
-    <title>atc24scope</title>
+    <title>atc24radar</title>
     <script type="module" src="/src/main.js"></script>
 </head>
 <body>
@@ -16,7 +16,7 @@
         </div>
         <button id="airspace-bounds" class="menu-button">AIRSPACE BOUNDS</button>
         <button id="ground-aircraft" class="menu-button">GROUND AIRCRAFT</button>
-        <label for="airport" class="dropdown-label">CURENT AIRPORT</label>
+        <label for="airport" class="dropdown-label">STATION SELECT</label>
         <select id="airport-dropdown" name="airport">
             <option value="IBLT">IBLT</option>
             <option value="IBTH">★IBTH</option>
@@ -31,7 +31,7 @@
             <option value="IMLR">IMLR</option>
             <option value="IPAP">IPAP</option>
             <option value="IPPH">★IPPH</option>
-            <option value="IRFD">★IRFD</option>
+            <option value="IRFD" selected>★IRFD</option>
             <option value="ISAU">ISAU</option>
             <option value="ISCM">ISCM</option>
             <option value="ISKP">ISKP</option>
@@ -41,7 +41,9 @@
         </select>
         <button id="ground-button" class="menu-button">GROUND</button>
         <button id="approch-button" class="menu-button">APP Sel</button>
-        <a id="name" href="https://github.com/t-arpin/atc24scope/tree/main">ATC24SCOPE</a>
+        <div id="station-info"></div>
+        <div style="font-size: 2em; font-weight: 100;">|</div>
+        <a id="name" href="https://github.com/t-arpin/atc24radar/tree/main">atc24radar</a>
     </div>
     <div id="svg-container">
         <div id="side-display">
@@ -73,7 +75,7 @@
                 N/A
                 <span class="airport-name">Not available</span>
             </div>
-            <svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>
+            <div id="plane-icon-container"></div>
         </div>
         <div id="detailed-info-container">
             <div id="details-spacer">
