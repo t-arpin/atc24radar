@@ -339,7 +339,7 @@ function updateAircraftLayer(aircraftData) {
             icon.setAttribute('fill', 'red');
             icon.classList.add('aircraft-icon');
 
-            const planeIcon = getPlaneIcon(type, group);
+            const planeIcon = getPlaneIcon(type, group, heading);
 
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("fill", "white");
@@ -420,10 +420,12 @@ function updateAircraftLayer(aircraftData) {
         //label stuff
         updateLabel(group, info, id);
 
+        //update icon
+        rotatePlaneIcon(group, heading);
+
         if (id == curentAircraftId){
             updateOverlay(id, info);
         }
-        console.log(info.flightPlan);
     }
 
     // Remove aircraft no longer in the data
@@ -449,7 +451,8 @@ function updateAircraftLayer(aircraftData) {
 
     //console.log(aircraftElements);
 }
-function getPlaneIcon(type, group, fillColor = '#FF0000') {
+
+function getPlaneIcon(type, group, heading) {
     const svgPath = `assets/plane-Icons/${aircraftIconMap.get(type)}.svg`;
 
     fetch(svgPath)
@@ -466,20 +469,39 @@ function getPlaneIcon(type, group, fillColor = '#FF0000') {
             // Apply fill color
             const paths = svgElement.querySelectorAll('path');
             paths.forEach(path => {
-                path.style.fill = fillColor;
+                path.style.fill = 'red';
             });
 
-            // Optionally scale down by wrapping in a <g> element
-            const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            wrapper.setAttribute('transform', `scale(${aircraftScaleMap.get(aircraftIconMap.get(type))})`);
-            wrapper.appendChild(svgElement);
+            // Use viewBox to center icon
+            const vb = svgElement.viewBox.baseVal;
+            const cx = vb.x + vb.width / 2;
+            const cy = vb.y + vb.height / 2;
 
-            // Append to group
-            group.appendChild(wrapper);
+            const scale = aircraftScaleMap.get(aircraftIconMap.get(type)) || 1;
+
+            // Wrap and transform: move center to 0,0 and apply scale
+            const innerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            innerG.setAttribute('transform', `translate(${-cx*scale}, ${-cy*scale}) scale(${scale})`);
+            innerG.appendChild(svgElement);
+
+            // 2. Create outer <g> to rotate around center
+            const outerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            outerG.setAttribute('transform', `rotate(${heading})`);
+            outerG.setAttribute('id', 'rotater');
+            outerG.appendChild(innerG);
+
+            // Insert under existing children
+            group.insertBefore(outerG, group.firstChild);
         })
         .catch(err => {
             console.error('Error loading plane icon:', err);
         });
+}
+
+function rotatePlaneIcon(group, heading){
+    const rotater = group.querySelector('#rotater');
+    if (rotater == null) return;
+    rotater.setAttribute('transform', `rotate(${heading})`);
 }
 
 function labelMove(e, label, svg, group, start){
