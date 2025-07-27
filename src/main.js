@@ -3,6 +3,8 @@ import AcftTypeMapJson from "/src/data/AcftTypeMap.js";
 import CallsignMapJson from "/src/data/callsignMap.js";
 import StationMap from "/src/data/StationMap.js";
 import AirportNamesMap from "/src/data/AirportNamesMap.js";
+import AircraftIconMap from "/src/data/AircraftIconMap.js";
+import AircraftScaleMap from "/src/data/AircraftScaleMap.js";
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -25,6 +27,8 @@ const acftTypeMap = new Map(Object.entries(AcftTypeMapJson));
 const callsignMap = new Map(Object.entries(CallsignMapJson));
 const stationMap = new Map(Object.entries(StationMap));
 const airportNamesMap = new Map(Object.entries(AirportNamesMap));
+const aircraftIconMap = new Map(Object.entries(AircraftIconMap));
+const aircraftScaleMap = new Map(Object.entries(AircraftScaleMap));
 
 //svg
 const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
@@ -335,6 +339,8 @@ function updateAircraftLayer(aircraftData) {
             icon.setAttribute('fill', 'red');
             icon.classList.add('aircraft-icon');
 
+            const planeIcon = getPlaneIcon(type, group);
+
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("fill", "white");
             label.setAttribute("font-size", labelFontSize);
@@ -442,6 +448,38 @@ function updateAircraftLayer(aircraftData) {
     }
 
     //console.log(aircraftElements);
+}
+function getPlaneIcon(type, group, fillColor = '#FF0000') {
+    const svgPath = `assets/plane-Icons/${aircraftIconMap.get(type)}.svg`;
+
+    fetch(svgPath)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load plane SVG: ' + response.status);
+            return response.text();
+        })
+        .then(svgText => {
+            // Parse SVG
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+            const svgElement = svgDoc.documentElement;
+
+            // Apply fill color
+            const paths = svgElement.querySelectorAll('path');
+            paths.forEach(path => {
+                path.style.fill = fillColor;
+            });
+
+            // Optionally scale down by wrapping in a <g> element
+            const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            wrapper.setAttribute('transform', `scale(${aircraftScaleMap.get(aircraftIconMap.get(type))})`);
+            wrapper.appendChild(svgElement);
+
+            // Append to group
+            group.appendChild(wrapper);
+        })
+        .catch(err => {
+            console.error('Error loading plane icon:', err);
+        });
 }
 
 function labelMove(e, label, svg, group, start){
