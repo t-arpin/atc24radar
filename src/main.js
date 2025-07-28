@@ -54,6 +54,13 @@ let start = { x: 0, y: 0};
 let offsetInfoOverlay = { x: 0, y: 0 };
 let curentAircraftId = null;
 let textAlign = 'start';
+let isMeasuring = false;
+let measuringline = null;
+let textStart = null;
+let textEnd = null;
+let measuringLineStart = null;
+let textDistance = null;
+
 const aircraftTrails = {};
 const maxTrailLength = 15;
 
@@ -346,8 +353,10 @@ function updateAircraftLayer(aircraftData) {
             label.setAttribute("font-size", labelFontSize);
             label.setAttribute('font-size', labelFontSize * currentZoom);
             label.classList.add("aircraft-label");
+            label.setAttribute('id', "aircraft-label");
             label.setAttribute("x", defaultLabelOffset * currentZoom); // offset for label
             label.setAttribute("y", 2 * currentZoom); // offset for label
+            label.setAttribute('pinned', 'false');
 
             const connector = document.createElementNS("http://www.w3.org/2000/svg", "line")
             connector.setAttribute("stroke", "white");
@@ -361,9 +370,23 @@ function updateAircraftLayer(aircraftData) {
                     start = { x: e.clientX, y: e.clientY };
                     e.preventDefault();
                 }
+                if (e.button == 1){
+                    const pin = label.getAttribute('pinned') == 'false' ? 'true' : 'false';
+                    label.setAttribute('pinned', pin);
+                    updateLabel(group, info, id);
+                }
             });
 
-            document.addEventListener('mousemove', e => labelMove(e, label, svg, group, start));
+            document.addEventListener('mousemove', e => {
+                if (isDraggingLabel.bool == true) labelMove(e, label, svg, group, start);
+                if (isMeasuring == true) {
+                    const pt = svg.createSVGPoint();
+                    pt.x = e.clientX;
+                    pt.y = e.clientY;
+                    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                    updateMeasuringTool(svgP.x, svgP.y);
+                }
+            });
 
             document.addEventListener('mouseup', e => {
                 isDraggingLabel.bool = false;
@@ -561,9 +584,10 @@ function drawTrail(id, points) {
 }
 
 function updateConnector(group){
-    const text = group.querySelector("text")
+    const text = group.querySelector("text");
     const bbox = text.getBBox();
-    const connector = group.querySelector(".label-connector")
+    const connector = group.querySelector(".label-connector");
+    const label = group.querySelector(".aircraft-label");
 
     connector.setAttribute("stroke-width", 0.5 * currentZoom);
 
@@ -589,15 +613,19 @@ function updateConnector(group){
 }
 
 function updateLabel(group, info, id){
-    const text = group.querySelector("text")
+    const text = group.querySelector("text");
+    const label = group.querySelector(".aircraft-label");
+    const connector = group.querySelector(".label-connector");
 
-    if (info.isOnGround && currentZoom > 0.09651739612301583) {
+    if (info.isOnGround && currentZoom > 0.09651739612301583 && label.getAttribute('pinned') == 'false') {
 
         text.innerHTML = '';
-        group.querySelector(".label-connector").setAttribute('display', 'none');
+        label.setAttribute('display', 'none');
+        connector.setAttribute('display', 'none');
         return;
     }
-    group.querySelector(".label-connector").setAttribute('display', 'block');
+    label.setAttribute('display', 'block');
+    connector.setAttribute('display', 'block');
 
     let color = 'white'
 
@@ -616,9 +644,10 @@ function updateLabel(group, info, id){
     const carrier = callsignParts[0];
     const number = callsignParts[1];
 
+    const star = group.querySelector(".aircraft-label").getAttribute('pinned') == 'true' ? ' ★' : '';
 
     text.innerHTML = `
-        <tspan dx="0" dy="0em" id="tspan1">${callsignMap.get(carrier) + number}</tspan>
+        <tspan dx="0" dy="0em" id="tspan1">${callsignMap.get(carrier) + number + star}</tspan>
         <tspan dx="0" dy="0em" id="tspan2">${info.altitude}ftㅤ${info.speed}kt</tspan>
     `;
 
@@ -627,15 +656,48 @@ function updateLabel(group, info, id){
 
     // Now update the text content with aligned tspans
     text.innerHTML = `
-        <tspan dx="0" dy="0em">${callsignMap.get(carrier) + number}</tspan>
+        <tspan id="tspan1" dx="0" dy="0em">${callsignMap.get(carrier) + number  + star}</tspan>
         <tspan id="tspan2" dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ftㅤ${info.speed}kt</tspan>
-        <tspan dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}°ㅤㅤ${acftTypeMap.get(info.aircraftType)}</tspan>
+        <tspan id="tspan3" dx="-${(tspan2 + 6 * currentZoom)}" dy="1.2em">${info.heading}°ㅤㅤ${acftTypeMap.get(info.aircraftType)}</tspan>
     `;
 }
 
 window.addEventListener('resize', () => {
     updateAircraftLayer(aircraftData);
 });
+
+function updateMeasuringTool(x, y){
+    if (measuringline == null) return;
+    measuringline.setAttribute("x2", x);
+    measuringline.setAttribute("y2", y);
+    measuringline.setAttribute("stroke-width", 1 * currentZoom);
+
+    const dx = x - measuringLineStart.x;
+    const dy = y - measuringLineStart.y;
+    const heading = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+    const oppositeHeading = (heading + 180) % 360;
+    
+    const factor = dx > 0 ? 1 : -1;
+    
+    textStart.textContent = `${Math.round(heading)}°`;
+    textStart.setAttribute("x", measuringLineStart.x - (20*factor) * currentZoom);
+    textStart.setAttribute("y", measuringLineStart.y + 4 * currentZoom);
+    textStart.setAttribute("font-size", 12 * currentZoom);
+
+    textEnd.textContent = `${Math.round(oppositeHeading)}°`;
+    textEnd.setAttribute("x", x + (20*factor) * currentZoom);
+    textEnd.setAttribute("y", y + 4 * currentZoom);
+    textEnd.setAttribute("font-size", 12 * currentZoom);
+
+    // Distance in px, then convert to NM
+    const distPx = Math.sqrt(dx * dx + dy * dy);
+    const distStuds = distPx * 100; // 100 studs per px
+    const distNM = distStuds / 3307.14286;
+    textDistance.textContent = `${distNM.toFixed(2)} NM`;
+    textDistance.setAttribute("x", (measuringLineStart.x + x) / 2);
+    textDistance.setAttribute("y", (measuringLineStart.y + y) / 2);
+    textDistance.setAttribute("font-size", 12 * currentZoom);
+}
 
 //fetch main SVG
 fetch('assets/coast.svg')
@@ -691,6 +753,62 @@ fetch('assets/coast.svg')
                 isPanning = true;
                 start = { x: e.clientX, y: e.clientY };
                 e.preventDefault();
+            }
+        });
+
+        //measuring tool
+        svg.addEventListener('dblclick', (e) => {
+            if (e.target.getAttribute('id') === 'tspan1' || e.target.getAttribute('id') === 'tspan2' || e.target.getAttribute('id') === 'tspan3') return;
+
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+            const x = svgP.x;
+            const y = svgP.y;
+
+            if (!isMeasuring) {
+                console.log('creating')
+                measuringLineStart = { x, y };
+
+                measuringline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                measuringline.setAttribute("x1", x);
+                measuringline.setAttribute("y1", y);
+                measuringline.setAttribute("x2", x);
+                measuringline.setAttribute("y2", y);
+                measuringline.setAttribute("stroke", "yellow");
+                measuringline.setAttribute("stroke-width", "1");
+
+                textStart = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textStart.setAttribute("fill", "white");
+                textStart.setAttribute("font-size", "12px");
+                textStart.setAttribute("text-anchor", "middle");
+
+                textEnd = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textEnd.setAttribute("fill", "white");
+                textEnd.setAttribute("font-size", "12px");
+                textEnd.setAttribute("text-anchor", "middle");
+
+                textDistance = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textDistance.setAttribute("fill", "white");
+                textDistance.setAttribute("font-size", "12px");
+                textDistance.setAttribute("text-anchor", "middle");
+
+                svg.appendChild(measuringline);
+                svg.appendChild(textStart);
+                svg.appendChild(textEnd);
+                svg.appendChild(textDistance);
+
+                isMeasuring = true;
+            } else {
+                // Clear all elements and reset state
+                svg.removeChild(measuringline);
+                svg.removeChild(textStart);
+                svg.removeChild(textEnd);
+                svg.removeChild(textDistance);
+                measuringline = textStart = textEnd = null;
+                measuringLineStart = null;
+                isMeasuring = false;
             }
         });
 
