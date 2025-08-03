@@ -46,6 +46,7 @@ let airspaceBoundsVisible = true;
 let sideDisplayToggle = false;
 let groundDisplayToggle = false;
 let isDraggingLabel = { bool: false, label: null};
+let isDraggingGroundLabel = { bool: false, label: null};
 let isDraggingOverlay = false;
 let currentZoom = 1;
 let groundCurrentZoom = 0.04;
@@ -167,6 +168,7 @@ airportSelector.addEventListener('change', () => {
     loadAirportData(airportSelector);
     if (groundDisplayToggle) {
         groundContainer.innerHTML = '';
+        groundAircraftElements = {};
         loadGroundDisplay();
     }
 });
@@ -291,7 +293,8 @@ airspaceButton.addEventListener('click', () => {
 
 groundAircraftButton.addEventListener('click', () => {
     groundAircraftHidden = !groundAircraftHidden;
-    updateAircraftLayer(aircraftData);
+    const mapSvg = document.getElementById('map-svg');
+    updateAircraftLayer(aircraftData, mapSvg);
     groundAircraftButton.style.background = !groundAircraftHidden ? '#4d4d4d' : '#3E3E3E';
     groundAircraftButton.style.border = !groundAircraftHidden ? '3px solid #4B5DA3' : 'none';
 });
@@ -362,10 +365,260 @@ socket.onmessage = event => {
         const enrichedAircraftMap = message.data; // object with callsign keys
         aircraftData = enrichedAircraftMap;
         updateAircraftLayer(enrichedAircraftMap);
+        if (groundDisplayToggle) {
+            updateGroundAircraftLayer(enrichedAircraftMap);
+        }
     }
 };
 
 socket.onerror = err => console.error('WebSocket error:', err);
+
+//aircraft fetures
+let groundAircraftElements = {}; // Maps aircraft ID to <g> element
+
+function updateGroundAircraftLayer(aircraftData) {
+    const newIds = new Set();
+    const svg = document.getElementById('ground-map-svg');
+    console.log('updating ground aircraft');
+
+    let start = { x: 0, y: 0};
+
+    for (const [id, info] of Object.entries(aircraftData)) {
+        //extract aircraft info
+        const heading = info.heading;
+        const player = info.playerName;
+        const altitude = info.altitude;
+        const type = info.aircraftType;
+        const { x, y } = info.position;
+        const speed = info.speed;
+        const isOnGround = info.isOnGround;
+
+        const flightPlan = info.flightPlan
+
+        /*  const flightrules = flightPlan.flightrules;
+            const departing = flightPlan.departing;
+            const arriving = flightPlan.arriving;
+            const route = flightPlan.route;
+            const flightlevel = flightPlan.flightlevel; */
+
+        newIds.add(id);
+
+        let group = groundAircraftElements[id];
+
+        if (!group) {
+            // Create new group for aircraft + label
+            console.log(`Creating new group for aircraft ${id}`);
+            group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.setAttribute('id', `ac-${id}`);
+            
+            const icon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            icon.setAttribute('r', 2);
+            icon.setAttribute('r', parseFloat(icon.getAttribute('r')) * groundCurrentZoom);
+            icon.setAttribute('fill', 'red');
+            icon.classList.add('ground-aircraft-icon');
+
+            const planeIcon = getPlaneIcon(type, group, heading);
+
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            label.setAttribute("fill", "white");
+            label.setAttribute("font-size", labelFontSize);
+            label.setAttribute('font-size', labelFontSize * groundCurrentZoom);
+            label.classList.add("ground-aircraft-label");
+            label.setAttribute('id', "aircraft-label");
+            label.setAttribute("x", defaultLabelOffset * groundCurrentZoom); // offset for label
+            label.setAttribute("y", 2 * groundCurrentZoom); // offset for label
+            label.setAttribute('pinned', 'false');
+
+            const connector = document.createElementNS("http://www.w3.org/2000/svg", "line")
+            connector.setAttribute("stroke", "white");
+            connector.setAttribute("stroke-width", 0.5);
+            connector.classList.add("ground-label-connector");
+
+            //event listeners for moveing
+            label.addEventListener('mousedown', e => {
+                if (e.button == 0){
+                    isDraggingGroundLabel = { bool: true, label: label};
+                    start = { x: e.clientX, y: e.clientY };
+                    e.preventDefault();
+                }
+                if (e.button == 1){
+                    const pin = label.getAttribute('pinned') == 'false' ? 'true' : 'false';
+                    label.setAttribute('pinned', pin);
+                    updateGroundLabel(group, info, id)
+                }
+            });
+
+            document.addEventListener('mousemove', e => {
+                if (isDraggingGroundLabel.bool == true) labelGroundMove(e, label, svg, group, start);
+            });
+
+            document.addEventListener('mouseup', e => {
+                isDraggingGroundLabel.bool = false;
+            });
+
+            label.addEventListener("dblclick", function () {
+                displayOverlay(id, info);
+            });
+
+            group.appendChild(icon);
+            group.appendChild(label);
+            group.insertBefore(connector, group.firstChild);
+            svg.appendChild(group);
+
+            groundAircraftElements[id] = group;
+
+            document.addEventListener('wheel', e => {
+                if (isOnGround) {
+                    updateGroundLabel(group, info, id)
+                    document.querySelectorAll('.trail').forEach(trail => {
+                        trail.setAttribute('stroke-width', 1 * groundCurrentZoom);
+                    });
+                    updateGroundConnector(group);
+                }
+            });
+
+        }
+
+        //handle trails only if aircraft is on the ground
+        if (isOnGround) {
+
+            //update position
+            group.setAttribute('transform', `translate(${x/100}, ${y/100})`);
+
+            //hide/show ground aircraft
+            group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
+
+            //label stuff
+            updateGroundLabel(group, info, id)
+
+            //update icon
+            rotatePlaneIcon(group, heading);
+        }
+
+        
+    }
+
+    // Remove aircraft no longer in the data
+    for (const id in groundAircraftElements) {
+        if (!newIds.has(id)) {
+            const group = groundAircraftElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
+            }
+            delete groundAircraftElements[id];
+            console.log(`Removed ground aircraft ${id}`);
+
+            // Also remove trail
+            const trail = document.getElementById(`trail-${id}`);
+            if (trail && trail.parentNode) {
+                trail.parentNode.removeChild(trail);
+            }
+
+            delete aircraftTrails[id];
+        }
+    }
+
+    //console.log(groundAircraftElements);
+}
+
+function updateGroundLabel(group, info, id){
+    const text = group.querySelector("text");
+    const label = group.querySelector(".ground-aircraft-label");
+
+    let color = 'white'
+
+    if (info.flightPlan != null){
+        if (info.flightPlan.departing == airportSelector.value){
+            color = '#48b8fb';
+        }
+        if (info.flightPlan.arriving == airportSelector.value){
+            color = '#fce241';
+        }
+    }
+    
+    text.setAttribute("fill", color);
+    
+    const callsignParts = id.split("-");
+    const carrier = callsignParts[0];
+    const number = callsignParts[1];
+
+    const star = label.getAttribute('pinned') == 'true' ? ' ★' : '';
+
+    text.innerHTML = `
+        <tspan id='span1' dx="0" dy="0em">${callsignMap.get(carrier) + number + star}</tspan>
+    `;
+    text.setAttribute('transform', `rotate(-${groundOffsetsMap.get(airportSelector.value).r})`);
+}
+
+function updateGroundConnector(group){
+    const text = group.querySelector("text");
+    const bbox = text.getBBox();
+    const connector = group.querySelector(".ground-label-connector");
+    const label = group.querySelector(".ground-aircraft-label");
+    let textWidth = 0;
+
+    connector.setAttribute("stroke-width", 0.5 * groundCurrentZoom);
+
+    if (text.querySelector("#span1") != null) {
+        textWidth = text.querySelector("#span1").getBBox().width;
+
+        if (textAlign == 'start') {
+        textAlign = bbox.x > 0 ? 'start' : 'end';
+        } else {
+            textAlign = bbox.x + textWidth > 0 ? 'start' : 'end';
+        }
+            
+        text.setAttribute('text-anchor', textAlign);
+    }
+
+    const circleCenter = { x: 0, y: 0 }; // center of group is (0, 0)
+
+    const x = bbox.x >= 0 ? bbox.x : bbox.x + textWidth;
+    const y = bbox.y + 6 * groundCurrentZoom;
+
+    const rad = -groundOffsetsMap.get(airportSelector.value).r * Math.PI / 180; // negative to go from screen → map
+    const fromX = x * Math.cos(rad) - y * Math.sin(rad);
+    const fromY = x * Math.sin(rad) + y * Math.cos(rad);
+
+    // Set line attributes (converted into group-relative coords)
+    connector.setAttribute("x1", fromX);
+    connector.setAttribute("y1", fromY);
+    connector.setAttribute("x2", circleCenter.x);
+    connector.setAttribute("y2", circleCenter.y);
+}
+
+function labelGroundMove(e, label, svg, group, start){
+    if (!isDraggingGroundLabel.bool || isDraggingGroundLabel.label != label) {
+        return;
+    }
+    let adjustX = 1;
+    let adjustY = 1;
+    
+    if (window.innerWidth < svg.getAttribute('width')) {
+            adjustX = svg.getAttribute('width') / window.innerWidth;
+    }
+
+    if (window.innerHeight < svg.getAttribute('height')) {
+            adjustY = svg.getAttribute('height') / window.innerHeight;
+    }
+
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+
+    start.x = e.clientX;
+    start.y = e.clientY;
+
+    const x = parseFloat(label.getAttribute('x')) + dx * groundCurrentZoom * adjustX;
+    const y = parseFloat(label.getAttribute('y')) + dy * groundCurrentZoom * adjustY;
+    label.setAttribute('x', x);
+    label.setAttribute('y', y);
+
+    //connector
+    updateGroundConnector(group);
+}
+
+/*
+...................................................................................................................*/
 
 //aircraft fetures
 let aircraftElements = {}; // Maps aircraft ID to <g> element
@@ -717,7 +970,7 @@ function updateLabel(group, info, id){
     const carrier = callsignParts[0];
     const number = callsignParts[1];
 
-    const star = group.querySelector(".aircraft-label").getAttribute('pinned') == 'true' ? ' ★' : '';
+    const star = label.getAttribute('pinned') == 'true' ? ' ★' : '';
 
     text.innerHTML = `
         <tspan dx="0" dy="0em" id="tspan1">${callsignMap.get(carrier) + number + star}</tspan>
@@ -736,7 +989,8 @@ function updateLabel(group, info, id){
 }
 
 window.addEventListener('resize', () => {
-    updateAircraftLayer(aircraftData);
+    const mapSvg = document.getElementById('map-svg');
+    updateAircraftLayer(aircraftData, mapSvg);
 });
 
 function updateMeasuringTool(x, y){
@@ -904,6 +1158,19 @@ function fetchMapLayerGround(container) {
 
                 viewBox.x = centerX - viewBox.width / 2;
                 viewBox.y = centerY - viewBox.height / 2;
+
+                const planeIcons = svg.querySelectorAll('.ground-aircraft-icon');
+
+                planeIcons.forEach(child => {
+                    child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
+                });
+
+                const labels = svg.querySelectorAll('.ground-aircraft-label');
+                labels.forEach(label => {
+                    label.setAttribute('font-size', label.getAttribute('font-size') * delta);
+                    label.setAttribute("x", label.getAttribute('x') * delta); 
+                    label.setAttribute("y", label.getAttribute('y') * delta); 
+                });
                 
             });
         })
