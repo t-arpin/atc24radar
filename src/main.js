@@ -70,33 +70,6 @@ let textDistance = null;
 const aircraftTrails = {};
 const maxTrailLength = 15;
 
-let degOffset = 0;
-
-const slider = document.getElementById("mySlider");
-const valueDisplay = document.getElementById("sliderValue");
-const increaseBtn = document.getElementById("increase");
-const decreaseBtn = document.getElementById("decrease");
-
-function updateDisplay() {
-  valueDisplay.textContent = slider.value + "°";
-  degOffset = slider.value;
-  if (groundDisplayToggle) {
-    document.getElementById('ground-map-svg').style.transform = `rotate(${degOffset}deg)`;
-  }
-}
-
-slider.addEventListener("input", updateDisplay);
-
-increaseBtn.addEventListener("click", () => {
-  slider.value = Math.min(Number(slider.value) + Number(slider.step), slider.max);
-  updateDisplay();
-});
-
-decreaseBtn.addEventListener("click", () => {
-  slider.value = Math.max(Number(slider.value) - Number(slider.step), slider.min);
-  updateDisplay();
-});
-
 fetchMapLayer(container);
 
 window.addEventListener('load', function() {
@@ -192,7 +165,10 @@ function updateOverlay(id, info) {
 
 airportSelector.addEventListener('change', () => {
     loadAirportData(airportSelector);
-    loadGroundChartSVG(airportSelector);
+    if (groundDisplayToggle) {
+        groundContainer.innerHTML = '';
+        loadGroundDisplay();
+    }
 });
 
 function loadAirportData(airportSelector) {
@@ -835,19 +811,20 @@ function fetchMapLayerGround(container) {
             let initalviewBoxwidth = viewBox.width;
             let initalviewBoxheight = viewBox.height;
             
-            const rotation = degOffset;
+            //rotate
+            const rotation = groundOffsetsMap.get(airportSelector.value).r;
+            svg.style.transform = `rotate(${rotation}deg)`
+
             //zoom in or out
-            groundCurrentZoom = 1;
-            viewBox.x = 0;
-            viewBox.y = 0;
+            let maxZoom = groundOffsetsMap.get(airportSelector.value).zoom;
+            groundCurrentZoom = maxZoom;
+            viewBox.x = groundOffsetsMap.get(airportSelector.value).x; 
+            viewBox.y = groundOffsetsMap.get(airportSelector.value).y;
 
             viewBox.width *= groundCurrentZoom;
             viewBox.height *= groundCurrentZoom;
-
-            const aircraftLayer = document.createElement('div');
-            aircraftLayer.setAttribute('id', 'ground-aircraft-layer');
-
-            svg.appendChild(aircraftLayer);
+            let initViewBoxWidth = viewBox.width;
+            let initViewBoxHeight = viewBox.height;
             
             let isPanning = false;
             let start = { x: 0, y: 0};
@@ -875,7 +852,7 @@ function fetchMapLayerGround(container) {
                 const dy = dyScreen * scaleY;
 
                 // --- Apply rotation correction ---
-                const rad = -degOffset * Math.PI / 180; // negative to go from screen → map
+                const rad = -rotation * Math.PI / 180; // negative to go from screen → map
                 const rotatedDx = dx * Math.cos(rad) - dy * Math.sin(rad);
                 const rotatedDy = dx * Math.sin(rad) + dy * Math.cos(rad);
 
@@ -886,7 +863,7 @@ function fetchMapLayerGround(container) {
                 //update start point
                 start.x = e.clientX;
                 start.y = e.clientY;
-                console.log(`"${airportSelector.value}": { zoom: ${groundCurrentZoom}, x: ${viewBox.x}, y: ${viewBox.y}, r: ${degOffset} },`);
+                //console.log(`"${airportSelector.value}": { zoom: ${groundCurrentZoom}, x: ${viewBox.x}, y: ${viewBox.y}, r: ${degOffset} },`);
             });
 
             svg.addEventListener('mouseup', e => {
@@ -908,6 +885,16 @@ function fetchMapLayerGround(container) {
 
                 const zoomIntensity = 0.1;
                 const delta = e.deltaY < 0 ? 1 - zoomIntensity : 1 + zoomIntensity;
+                groundCurrentZoom *= delta;
+
+                if (groundCurrentZoom >= maxZoom) {
+                    groundCurrentZoom = maxZoom;
+                    viewBox.x = groundOffsetsMap.get(airportSelector.value).x; 
+                    viewBox.y = groundOffsetsMap.get(airportSelector.value).y;
+                    viewBox.width = initViewBoxWidth;
+                    viewBox.height = initViewBoxHeight;
+                    return;
+                }
 
                 const centerX = viewBox.x + viewBox.width / 2;
                 const centerY = viewBox.y + viewBox.height / 2;
@@ -918,7 +905,6 @@ function fetchMapLayerGround(container) {
                 viewBox.x = centerX - viewBox.width / 2;
                 viewBox.y = centerY - viewBox.height / 2;
                 
-                groundCurrentZoom *= delta;
             });
         })
         .catch(err => {
@@ -957,11 +943,6 @@ function fetchMapLayer(container) {
             viewBox.y = -viewBox.height / 2;
             let initalviewBoxwidth = viewBox.width;
             let initalviewBoxheight = viewBox.height;
-
-            const aircraftLayer = document.createElement('div');
-            aircraftLayer.setAttribute('id', 'aircraft-layer');
-
-            svg.appendChild(aircraftLayer);
 
             /*
             window.addEventListener('resize', () => {
