@@ -1,4 +1,4 @@
-html, body, #svg-container {
+html, body, #svg-container, #ground-svg-container {
     background-color: black;
     margin: 0; padding: 0; height: 100%; width: 100%;
     overflow: hidden;
@@ -15,6 +15,39 @@ html, body, #svg-container {
     align-items: center;
     overflow: visible;
     width: 100vw;
+}
+
+#ground-svg-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    width: 0%;
+    background-color: black;
+}
+
+.back-button {
+  border: none;
+  background-color: #303030;
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.back-button:hover {
+  background-color: #292929;
+}
+
+.back-icon {
+  width: 20px;
+  height: 20px;
 }
 
 #side-display {

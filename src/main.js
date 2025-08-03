@@ -5,6 +5,7 @@ import StationMap from "/src/data/StationMap.js";
 import AirportNamesMap from "/src/data/AirportNamesMap.js";
 import AircraftIconMap from "/src/data/AircraftIconMap.js";
 import AircraftScaleMap from "/src/data/AircraftScaleMap.js";
+import GroundOffsets from "/src/data/GroundOffsets.js";
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -20,6 +21,8 @@ const airportSelector = document.getElementById('airport-dropdown');
 const groundDisplayButton = document.getElementById('groundview-button');
 const infoOverlay = document.getElementById('info-overlay');
 const closeButton = document.getElementById('close-icon');
+const groundContainer = document.getElementById('ground-svg-container');
+const sidePanelBackButton = document.getElementById('side-panel-back');
 
 //maps
 const airlineMap = new Map(Object.entries(AirlineMapJson));
@@ -29,6 +32,7 @@ const stationMap = new Map(Object.entries(StationMap));
 const airportNamesMap = new Map(Object.entries(AirportNamesMap));
 const aircraftIconMap = new Map(Object.entries(AircraftIconMap));
 const aircraftScaleMap = new Map(Object.entries(AircraftScaleMap));
+const groundOffsetsMap = new Map(Object.entries(GroundOffsets));
 
 //svg
 const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
@@ -40,9 +44,11 @@ const PORT = 4000;
 let zuluTime = false;
 let airspaceBoundsVisible = true;
 let sideDisplayToggle = false;
+let groundDisplayToggle = false;
 let isDraggingLabel = { bool: false, label: null};
 let isDraggingOverlay = false;
 let currentZoom = 1;
+let groundCurrentZoom = 0.04;
 let labelFontSize = 10;
 let aircraftData = {};
 let groundAircraftHidden = false;
@@ -63,6 +69,35 @@ let textDistance = null;
 
 const aircraftTrails = {};
 const maxTrailLength = 15;
+
+let degOffset = 0;
+
+const slider = document.getElementById("mySlider");
+const valueDisplay = document.getElementById("sliderValue");
+const increaseBtn = document.getElementById("increase");
+const decreaseBtn = document.getElementById("decrease");
+
+function updateDisplay() {
+  valueDisplay.textContent = slider.value + "°";
+  degOffset = slider.value;
+  if (groundDisplayToggle) {
+    document.getElementById('ground-map-svg').style.transform = `rotate(${degOffset}deg)`;
+  }
+}
+
+slider.addEventListener("input", updateDisplay);
+
+increaseBtn.addEventListener("click", () => {
+  slider.value = Math.min(Number(slider.value) + Number(slider.step), slider.max);
+  updateDisplay();
+});
+
+decreaseBtn.addEventListener("click", () => {
+  slider.value = Math.max(Number(slider.value) - Number(slider.step), slider.min);
+  updateDisplay();
+});
+
+fetchMapLayer(container);
 
 window.addEventListener('load', function() {
     loadAirportData(airportSelector);
@@ -157,6 +192,7 @@ function updateOverlay(id, info) {
 
 airportSelector.addEventListener('change', () => {
     loadAirportData(airportSelector);
+    loadGroundChartSVG(airportSelector);
 });
 
 function loadAirportData(airportSelector) {
@@ -231,6 +267,37 @@ function loadAirportData(airportSelector) {
         `;
 }
 
+function loadGroundChartSVG(airportSelector) {
+    const folder = airportSelector.value;
+    const svgPath = `assets/maps/${folder}/GROUND.svg`;
+
+    fetch(svgPath)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load ground SVG: ' + response.status);
+            return response.text();
+        })
+        .then(svgText => {
+            // Remove existing ground SVG
+            const existing = document.getElementById('groundCenter-svg');
+            if (existing) {
+                existing.parentNode.removeChild(existing);
+            }
+
+            const mapSvg = document.getElementById('ground-map-svg');
+            mapSvg.innerHTML += svgText; 
+
+            const loaded = mapSvg.querySelector('svg:last-of-type');
+            if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
+
+            loaded.setAttribute('id', 'groundCenter-svg');
+
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error loading groundview: ' + err.message);
+        });
+}
+
 timeButton.addEventListener('click', () => {
     zuluTime = !zuluTime;
     timeButton.textContent = zuluTime ? 'UTC' : 'LOCAL';
@@ -278,13 +345,35 @@ displayButton.addEventListener('click', () => {
     //hide all child elements of side-display
     const childElements = document.querySelectorAll('#side-display > *');
     childElements.forEach(child => {
-        child.style.display = sideDisplayToggle ? 'block' : 'none';
+        if (child != groundContainer && child != sidePanelBackButton) {
+            child.style.display = sideDisplayToggle && !groundDisplayToggle ? 'block' : 'none';
+        }
     });
+    sidePanelBackButton.style.display = sideDisplayToggle && groundDisplayToggle ? 'block' : 'none';
 });
 
 groundDisplayButton.addEventListener("click", () => {
-    console.log("Click detected");
+    groundDisplayToggle = !groundDisplayToggle;
+    groundDisplayButton.style.display = 'none'; 
+    chartsButton.style.display = 'none';
+    groundContainer.style.width = '100%';
+    sidePanelBackButton.style.display = 'block';
+    loadGroundDisplay()
 });
+
+sidePanelBackButton.addEventListener("click", () => {
+    groundContainer.innerHTML = '';
+    groundDisplayToggle = false;
+    groundDisplayButton.style.display = 'block'; 
+    chartsButton.style.display = 'block';
+    groundContainer.style.width = '0%';
+    sidePanelBackButton.style.display = 'none';
+});
+
+function loadGroundDisplay(){
+    fetchMapLayerGround(groundContainer);
+    loadGroundChartSVG(airportSelector);
+}
 
 //webSocket client to receive aircraft data
 const socket = new WebSocket(`ws://localhost:${PORT}`);
@@ -294,6 +383,7 @@ socket.onmessage = event => {
 
     if (message.type === 'ENRICHED_AIRCRAFT_DATA') {
         const enrichedAircraftMap = message.data; // object with callsign keys
+        aircraftData = enrichedAircraftMap;
         updateAircraftLayer(enrichedAircraftMap);
     }
 };
@@ -596,15 +686,18 @@ function updateConnector(group){
     connector.setAttribute("stroke-width", 0.5 * currentZoom);
 
     const circleCenter = { x: 0, y: 0 }; // center of group is (0, 0)
-    const textWidth = text.querySelector("#tspan2").getBBox().width;
+    if (text.querySelector("#tspan2") != null) {
+        const textWidth = text.querySelector("#tspan2").getBBox().width;
 
-    if (textAlign == 'start') {
+        if (textAlign == 'start') {
         textAlign = bbox.x > 0 ? 'start' : 'end';
-    } else {
-        textAlign = bbox.x + textWidth > 0 ? 'start' : 'end';
+        } else {
+            textAlign = bbox.x + textWidth > 0 ? 'start' : 'end';
+        }
+            
+        text.setAttribute('text-anchor', textAlign);
     }
-        
-    text.setAttribute('text-anchor', textAlign);
+
 
     const fromX = bbox.x >= 0 ? bbox.x : bbox.x + textWidth;
     const fromY = bbox.y + 18 * currentZoom;
@@ -703,220 +796,372 @@ function updateMeasuringTool(x, y){
     textDistance.setAttribute("font-size", 12 * currentZoom);
 }
 
-//fetch main SVG
-fetch('assets/coast.svg')
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to load SVG: ' + response.status);
-        }
-        return response.text();
-    })
-    .then(async svgText => {
-        svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
-        container.innerHTML += svgText;
+function fetchMapLayerGround(container) {
+    //fetch main SVG
+    fetch('assets/coast.svg')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load SVG: ' + response.status);
+            }
+            return response.text();
+        })
+        .then(async svgText => {
+            svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
+            console.log(container);
+            container.innerHTML += svgText;
 
-        const svg = container.querySelector('svg');
-        if (!svg) throw new Error('No <svg> element found in file');
+            const svg = container.querySelector('svg');
+            if (!svg) throw new Error('No <svg> element found in file');
 
-        svg.setAttribute('id', 'map-svg');
+            svg.setAttribute('id', 'ground-map-svg');
 
-        //get viewBox
-        const viewBox = svg.viewBox.baseVal;
+            const allShapes = svg.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
 
-        //screen center the SVG
-        const bbox = svg.getBBox();
-        viewBox.width = bbox.width;
-        viewBox.height = bbox.height;
-        viewBox.x = -viewBox.width / 2;
-        viewBox.y = -viewBox.height / 2;
-        let initalviewBoxwidth = viewBox.width;
-        let initalviewBoxheight = viewBox.height;
+            allShapes.forEach(el => {
+                // Remove Inkscape-style inline fill and style
+                //el.removeAttribute('style');
 
-        const aircraftLayer = document.createElement('div');
-        aircraftLayer.setAttribute('id', 'aircraft-layer');
+                el.setAttribute('fill', '#000000');
+            });
 
-        svg.appendChild(aircraftLayer);
+            //get viewBox
+            const viewBox = svg.viewBox.baseVal;
 
-        /*
-        window.addEventListener('resize', () => {
-            //update viewBox refence size
+            //screen center the SVG
             const bbox = svg.getBBox();
             viewBox.width = bbox.width;
             viewBox.height = bbox.height;
             viewBox.x = -viewBox.width / 2;
             viewBox.y = -viewBox.height / 2;
-            initalviewBoxwidth = viewBox.width;
-            initalviewBoxheight = viewBox.height;
-        }); */
-        
-        let isPanning = false;
-        let start = { x: 0, y: 0};
-
-        svg.addEventListener('mousedown', e => {
-            if (e.button === 2) {
-                isPanning = true;
-                start = { x: e.clientX, y: e.clientY };
-                e.preventDefault();
-            }
-        });
-
-        //measuring tool
-        svg.addEventListener('dblclick', (e) => {
-            if (e.target.getAttribute('id') === 'tspan1' || e.target.getAttribute('id') === 'tspan2' || e.target.getAttribute('id') === 'tspan3') return;
-
-            const pt = svg.createSVGPoint();
-            pt.x = e.clientX;
-            pt.y = e.clientY;
-            const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-            const x = svgP.x;
-            const y = svgP.y;
-
-            if (!isMeasuring) {
-                console.log('creating')
-                measuringLineStart = { x, y };
-
-                measuringline = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                measuringline.setAttribute("x1", x);
-                measuringline.setAttribute("y1", y);
-                measuringline.setAttribute("x2", x);
-                measuringline.setAttribute("y2", y);
-                measuringline.setAttribute("stroke", "yellow");
-                measuringline.setAttribute("stroke-width", "1");
-
-                textStart = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                textStart.setAttribute("fill", "white");
-                textStart.setAttribute("font-size", "12px");
-                textStart.setAttribute("text-anchor", "middle");
-
-                textEnd = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                textEnd.setAttribute("fill", "white");
-                textEnd.setAttribute("font-size", "12px");
-                textEnd.setAttribute("text-anchor", "middle");
-
-                textDistance = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                textDistance.setAttribute("fill", "white");
-                textDistance.setAttribute("font-size", "12px");
-                textDistance.setAttribute("text-anchor", "middle");
-
-                svg.appendChild(measuringline);
-                svg.appendChild(textStart);
-                svg.appendChild(textEnd);
-                svg.appendChild(textDistance);
-
-                isMeasuring = true;
-            } else {
-                // Clear all elements and reset state
-                svg.removeChild(measuringline);
-                svg.removeChild(textStart);
-                svg.removeChild(textEnd);
-                svg.removeChild(textDistance);
-                measuringline = textStart = textEnd = null;
-                measuringLineStart = null;
-                isMeasuring = false;
-            }
-        });
-
-        svg.addEventListener('mousemove', e => {
-            if (!isPanning) return;
-
-            const rect = container.getBoundingClientRect();
-
-            //calculate scale factors
-            const scaleX = viewBox.width / Math.min(rect.width, initalviewBoxwidth);
-            const scaleY = viewBox.height / Math.min(rect.height, initalviewBoxheight);
-
-            const dxScreen = e.clientX - start.x;
-            const dyScreen = e.clientY - start.y;
-            const dx = dxScreen * scaleX;
-            const dy = dyScreen * scaleY;
-
-            //update viewBox position
-            viewBox.x -= dx;
-            viewBox.y -= dy;
-
-            //update start point
-            start.x = e.clientX;
-            start.y = e.clientY;
-        });
-
-        svg.addEventListener('mouseup', e => {
-            if (e.button === 2) {
-            isPanning = false;
-            }
-        });
-        svg.addEventListener('mouseleave', () => {
-            isPanning = false;
-        });
-
-        //prevent context menu on right click
-        svg.addEventListener('contextmenu', e => {
-            e.preventDefault();
-        });
-
-        svg.addEventListener('wheel', e => {
-            e.preventDefault();
-
-            const zoomIntensity = 0.1;
-            const mouseX = e.offsetX;
-            const mouseY = e.offsetY;
-
-            //calculate relative position
-            const rect = svg.getBoundingClientRect();
-            const zoomPointX = viewBox.x + (e.clientX - rect.left) / rect.width * viewBox.width;
-            const zoomPointY = viewBox.y + (e.clientY - rect.top) / rect.height * viewBox.height;
-
+            let initalviewBoxwidth = viewBox.width;
+            let initalviewBoxheight = viewBox.height;
+            
             //zoom in or out
-            const delta = e.deltaY < 0 ? 1 - zoomIntensity : 1 + zoomIntensity;
-            viewBox.width *= delta;
-            viewBox.height *= delta;
+            groundCurrentZoom = 1;
+            viewBox.x = 0;
+            viewBox.y = 0;
 
-            //adjust x/y so zoom is centered on cursor
-            viewBox.x = zoomPointX - (mouseX / svg.clientWidth) * viewBox.width;
-            viewBox.y = zoomPointY - (mouseY / svg.clientHeight) * viewBox.height;
+            viewBox.width *= groundCurrentZoom;
+            viewBox.height *= groundCurrentZoom;
 
-            const planeIcons = svg.querySelectorAll('.aircraft-icon');
+            const aircraftLayer = document.createElement('div');
+            aircraftLayer.setAttribute('id', 'ground-aircraft-layer');
 
-            planeIcons.forEach(child => {
-                child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
+            svg.appendChild(aircraftLayer);
+            
+            let isPanning = false;
+            let start = { x: 0, y: 0};
+
+            svg.addEventListener('mousedown', e => {
+                if (e.button === 2) {
+                    isPanning = true;
+                    start = { x: e.clientX, y: e.clientY };
+                    e.preventDefault();
+                }
             });
 
-            const labels = svg.querySelectorAll('.aircraft-label');
-            labels.forEach(label => {
-                label.setAttribute('font-size', label.getAttribute('font-size') * delta);
-                label.setAttribute("x", label.getAttribute('x') * delta); 
-                label.setAttribute("y", label.getAttribute('y') * delta); 
+            svg.addEventListener('mousemove', e => {
+                if (!isPanning) return;
+
+                const rect = container.getBoundingClientRect();
+
+                //calculate scale factors
+                const scaleX = viewBox.width / Math.min(rect.width, initalviewBoxwidth);
+                const scaleY = viewBox.height / Math.min(rect.height, initalviewBoxheight);
+
+                const dxScreen = e.clientX - start.x;
+                const dyScreen = e.clientY - start.y;
+                const dx = dxScreen * scaleX;
+                const dy = dyScreen * scaleY;
+
+                //update viewBox position
+                viewBox.x -= dx;
+                viewBox.y -= dy;
+
+                //update start point
+                start.x = e.clientX;
+                start.y = e.clientY;
+                console.log(`"${airportSelector.value}": { zoom: ${currentZoom}, x: ${viewBox.x}, y: ${viewBox.y} r: ${degOffset} },`);
             });
 
-            currentZoom *= delta;
+            svg.addEventListener('mouseup', e => {
+                if (e.button === 2) {
+                isPanning = false;
+                }
+            });
+            svg.addEventListener('mouseleave', () => {
+                isPanning = false;
+            });
+
+            //prevent context menu on right click
+            svg.addEventListener('contextmenu', e => {
+                e.preventDefault();
+            });
+
+            svg.addEventListener('wheel', e => {
+                e.preventDefault();
+
+                const zoomIntensity = 0.1;
+                const mouseX = e.offsetX;
+                const mouseY = e.offsetY;
+
+                //calculate relative position
+                const rect = svg.getBoundingClientRect();
+                const zoomPointX = viewBox.x + (e.clientX - rect.left) / rect.width * viewBox.width;
+                const zoomPointY = viewBox.y + (e.clientY - rect.top) / rect.height * viewBox.height;
+
+                //zoom in or out
+                const delta = e.deltaY < 0 ? 1 - zoomIntensity : 1 + zoomIntensity;
+                viewBox.width *= delta;
+                viewBox.height *= delta;
+
+                //adjust x/y so zoom is centered on cursor
+                console.log(zoomPointX - (mouseX / svg.clientWidth) * viewBox.width);
+                console.log(zoomPointY - (mouseY / svg.clientHeight) * viewBox.height);
+                viewBox.x = zoomPointX - (mouseX / svg.clientWidth) * viewBox.width;
+                viewBox.y = zoomPointY - (mouseY / svg.clientHeight) * viewBox.height;
+
+                const planeIcons = svg.querySelectorAll('.aircraft-icon');
+
+                planeIcons.forEach(child => {
+                    child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
+                });
+
+                const labels = svg.querySelectorAll('.aircraft-label');
+                labels.forEach(label => {
+                    label.setAttribute('font-size', label.getAttribute('font-size') * delta);
+                    label.setAttribute("x", label.getAttribute('x') * delta); 
+                    label.setAttribute("y", label.getAttribute('y') * delta); 
+                });
+
+                groundCurrentZoom *= delta;
+            });
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
         });
-    })
-    .catch(err => {
-        console.error(err);
-        container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
-    });
+}
 
-//fetch boundaries SVG
-fetch('assets/boundaries.svg')
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to load SVG: ' + response.status);
-        }
-        return response.text();
-    })
-    .then(async boundariesText => {
-        const svg = document.getElementById('map-svg')
-        svg.innerHTML += boundariesText;
+function fetchMapLayer(container) {
+    //fetch main SVG
+    fetch('assets/coast.svg')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load SVG: ' + response.status);
+            }
+            return response.text();
+        })
+        .then(async svgText => {
+            svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
+            console.log(container);
+            container.innerHTML += svgText;
 
-        const boundaries = svg.querySelector('svg');
-        if (!boundaries) throw new Error('No <svg> element found in file');
+            const svg = container.querySelector('svg');
+            if (!svg) throw new Error('No <svg> element found in file');
 
-        boundaries.setAttribute('id', 'boundaries-svg');
+            svg.setAttribute('id', 'map-svg');
 
-    })
-    .catch(err => {
-        console.error(err);
-        container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
-    });
+            //get viewBox
+            const viewBox = svg.viewBox.baseVal;
+
+            //screen center the SVG
+            const bbox = svg.getBBox();
+            viewBox.width = bbox.width;
+            viewBox.height = bbox.height;
+            viewBox.x = -viewBox.width / 2;
+            viewBox.y = -viewBox.height / 2;
+            let initalviewBoxwidth = viewBox.width;
+            let initalviewBoxheight = viewBox.height;
+
+            const aircraftLayer = document.createElement('div');
+            aircraftLayer.setAttribute('id', 'aircraft-layer');
+
+            svg.appendChild(aircraftLayer);
+
+            /*
+            window.addEventListener('resize', () => {
+                //update viewBox refence size
+                const bbox = svg.getBBox();
+                viewBox.width = bbox.width;
+                viewBox.height = bbox.height;
+                viewBox.x = -viewBox.width / 2;
+                viewBox.y = -viewBox.height / 2;
+                initalviewBoxwidth = viewBox.width;
+                initalviewBoxheight = viewBox.height;
+            }); */
+            
+            let isPanning = false;
+            let start = { x: 0, y: 0};
+
+            svg.addEventListener('mousedown', e => {
+                if (e.button === 2) {
+                    isPanning = true;
+                    start = { x: e.clientX, y: e.clientY };
+                    e.preventDefault();
+                }
+            });
+
+            //measuring tool
+            svg.addEventListener('dblclick', (e) => {
+                if (e.target.getAttribute('id') === 'tspan1' || e.target.getAttribute('id') === 'tspan2' || e.target.getAttribute('id') === 'tspan3') return;
+
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                const x = svgP.x;
+                const y = svgP.y;
+
+                if (!isMeasuring) {
+                    console.log('creating')
+                    measuringLineStart = { x, y };
+
+                    measuringline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    measuringline.setAttribute("x1", x);
+                    measuringline.setAttribute("y1", y);
+                    measuringline.setAttribute("x2", x);
+                    measuringline.setAttribute("y2", y);
+                    measuringline.setAttribute("stroke", "yellow");
+                    measuringline.setAttribute("stroke-width", "1");
+
+                    textStart = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textStart.setAttribute("fill", "white");
+                    textStart.setAttribute("font-size", "12px");
+                    textStart.setAttribute("text-anchor", "middle");
+
+                    textEnd = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textEnd.setAttribute("fill", "white");
+                    textEnd.setAttribute("font-size", "12px");
+                    textEnd.setAttribute("text-anchor", "middle");
+
+                    textDistance = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textDistance.setAttribute("fill", "white");
+                    textDistance.setAttribute("font-size", "12px");
+                    textDistance.setAttribute("text-anchor", "middle");
+
+                    svg.appendChild(measuringline);
+                    svg.appendChild(textStart);
+                    svg.appendChild(textEnd);
+                    svg.appendChild(textDistance);
+
+                    isMeasuring = true;
+                } else {
+                    // Clear all elements and reset state
+                    svg.removeChild(measuringline);
+                    svg.removeChild(textStart);
+                    svg.removeChild(textEnd);
+                    svg.removeChild(textDistance);
+                    measuringline = textStart = textEnd = null;
+                    measuringLineStart = null;
+                    isMeasuring = false;
+                }
+            });
+
+            svg.addEventListener('mousemove', e => {
+                if (!isPanning) return;
+
+                const rect = container.getBoundingClientRect();
+
+                //calculate scale factors
+                const scaleX = viewBox.width / Math.min(rect.width, initalviewBoxwidth);
+                const scaleY = viewBox.height / Math.min(rect.height, initalviewBoxheight);
+
+                const dxScreen = e.clientX - start.x;
+                const dyScreen = e.clientY - start.y;
+                const dx = dxScreen * scaleX;
+                const dy = dyScreen * scaleY;
+
+                //update viewBox position
+                viewBox.x -= dx;
+                viewBox.y -= dy;
+
+                //update start point
+                start.x = e.clientX;
+                start.y = e.clientY;
+            });
+
+            svg.addEventListener('mouseup', e => {
+                if (e.button === 2) {
+                isPanning = false;
+                }
+            });
+            svg.addEventListener('mouseleave', () => {
+                isPanning = false;
+            });
+
+            //prevent context menu on right click
+            svg.addEventListener('contextmenu', e => {
+                e.preventDefault();
+            });
+
+            svg.addEventListener('wheel', e => {
+                e.preventDefault();
+
+                const zoomIntensity = 0.1;
+                const mouseX = e.offsetX;
+                const mouseY = e.offsetY;
+
+                //calculate relative position
+                const rect = svg.getBoundingClientRect();
+                const zoomPointX = viewBox.x + (e.clientX - rect.left) / rect.width * viewBox.width;
+                const zoomPointY = viewBox.y + (e.clientY - rect.top) / rect.height * viewBox.height;
+
+                //zoom in or out
+                const delta = e.deltaY < 0 ? 1 - zoomIntensity : 1 + zoomIntensity;
+                viewBox.width *= delta;
+                viewBox.height *= delta;
+
+                //adjust x/y so zoom is centered on cursor
+                viewBox.x = zoomPointX - (mouseX / svg.clientWidth) * viewBox.width;
+                viewBox.y = zoomPointY - (mouseY / svg.clientHeight) * viewBox.height;
+
+                const planeIcons = svg.querySelectorAll('.aircraft-icon');
+
+                planeIcons.forEach(child => {
+                    child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
+                });
+
+                const labels = svg.querySelectorAll('.aircraft-label');
+                labels.forEach(label => {
+                    label.setAttribute('font-size', label.getAttribute('font-size') * delta);
+                    label.setAttribute("x", label.getAttribute('x') * delta); 
+                    label.setAttribute("y", label.getAttribute('y') * delta); 
+                });
+
+                currentZoom *= delta;
+                //console.log(currentZoom);
+                //console.log('x', viewBox.x, ' y', viewBox.y);
+            });
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
+        });
+
+    //fetch boundaries SVG
+    fetch('assets/boundaries.svg')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load SVG: ' + response.status);
+            }
+            return response.text();
+        })
+        .then(async boundariesText => {
+            const svg = document.getElementById('map-svg')
+            svg.innerHTML += boundariesText;
+
+            const boundaries = svg.querySelector('svg');
+            if (!boundaries) throw new Error('No <svg> element found in file');
+
+            boundaries.setAttribute('id', 'boundaries-svg');
+
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
+        });
+}
 
 /*fetch rings SVG **currently disabled
 fetch('assets/rings.svg')
