@@ -5,6 +5,7 @@ html, body, #svg-container {
     user-select: none;
     -webkit-user-drag: none;
     touch-action: none;
+    display: flex;
     font-family: ui-monospace, "Cascadia Mono", monospace
 }
 
@@ -28,7 +29,7 @@ html, body, #svg-container {
 }
 
 .sidebar-button {
-    background: #303030;
+    background-color: #303030;
     color: #fff;
     border: none;
     height: 30px;
@@ -39,7 +40,7 @@ html, body, #svg-container {
 }
 
 .sidebar-button:hover {
-    background: #292929;
+    background-color: #292929;
 }
 
 #resizer {

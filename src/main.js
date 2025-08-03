@@ -271,7 +271,7 @@ groundButton.addEventListener('click', () => {
 
 displayButton.addEventListener('click', () => {
     sideDisplayToggle = !sideDisplayToggle;
-    document.getElementById('map-svg').style.width = sideDisplayToggle ? '50vw' : '100vw';
+    container.style.width = sideDisplayToggle ? '50vw' : '100vw';
     document.getElementById('side-display').style.width = sideDisplayToggle ? '50vw' : '0';
     document.getElementById('resizer').style.width = sideDisplayToggle ? '1px' : '0';
     displayButton.innerText = sideDisplayToggle ? '<' : '>';
@@ -280,6 +280,10 @@ displayButton.addEventListener('click', () => {
     childElements.forEach(child => {
         child.style.display = sideDisplayToggle ? 'block' : 'none';
     });
+});
+
+groundDisplayButton.addEventListener("click", () => {
+    console.log("Click detected");
 });
 
 //webSocket client to receive aircraft data
