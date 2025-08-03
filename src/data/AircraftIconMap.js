@@ -56,6 +56,7 @@ export default {
   "F4U Corsair": "GeneralAviation",
   "Bombardier CRJ700": "Rear2",
   "Bombardier Q400": "Q400",
+  "Diamond DA50" : "GeneralAviation",
   "DHC-6 Twin Otter": "TwinGa",
   "DHC-6 Twin Otter Amphibian": "TwinGa",
   "Fokker Dr1": "GeneralAviation",

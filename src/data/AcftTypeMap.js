@@ -57,6 +57,7 @@ export default {
     "F4U Corsair":                  "CORS",
     "Bombardier CRJ700":            "CRJ7",
     "Bombardier Q400":              "DH8D",
+    "Diamond DA50" :                "DA50",
     "DHC-6 Twin Otter":             "DHC6",
     "DHC-6 Twin Otter Amphibian":   "DHC6",
     "Fokker Dr1":                   "DR1",
