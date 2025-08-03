@@ -256,7 +256,6 @@ function loadAirportData(airportSelector) {
     
     const stationCenter = stationMap.get(folder);
     const stationType = 'CTR';
-    console.log(stationCenter);
     
     document.querySelector('#station-info').innerHTML = `
         ${stationCenter}-${stationType}
@@ -268,6 +267,9 @@ function loadAirportData(airportSelector) {
 }
 
 function loadGroundChartSVG(airportSelector) {
+    if (!groundDisplayToggle) {
+        return;
+    }
     const folder = airportSelector.value;
     const svgPath = `assets/maps/${folder}/GROUND.svg`;
 
@@ -327,7 +329,6 @@ groundButton.addEventListener('click', () => {
     groundViewVisible = !groundViewVisible;
 
     const groundSvg = document.getElementById('groundview-svg');
-    console.log(groundSvg);
     if (groundSvg) {
         groundSvg.style.display = groundViewVisible ? 'block' : 'none';
     }
@@ -562,7 +563,6 @@ function updateAircraftLayer(aircraftData) {
             }
 
             delete aircraftTrails[id];
-            console.log(`Removed aircraft ${id}`);
         }
     }
 
@@ -807,7 +807,6 @@ function fetchMapLayerGround(container) {
         })
         .then(async svgText => {
             svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
-            console.log(container);
             container.innerHTML += svgText;
 
             const svg = container.querySelector('svg');
@@ -836,6 +835,7 @@ function fetchMapLayerGround(container) {
             let initalviewBoxwidth = viewBox.width;
             let initalviewBoxheight = viewBox.height;
             
+            const rotation = degOffset;
             //zoom in or out
             groundCurrentZoom = 1;
             viewBox.x = 0;
@@ -874,14 +874,19 @@ function fetchMapLayerGround(container) {
                 const dx = dxScreen * scaleX;
                 const dy = dyScreen * scaleY;
 
-                //update viewBox position
-                viewBox.x -= dx;
-                viewBox.y -= dy;
+                // --- Apply rotation correction ---
+                const rad = -degOffset * Math.PI / 180; // negative to go from screen → map
+                const rotatedDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+                const rotatedDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+                // Update viewBox position using rotated deltas
+                viewBox.x -= rotatedDx;
+                viewBox.y -= rotatedDy;
 
                 //update start point
                 start.x = e.clientX;
                 start.y = e.clientY;
-                console.log(`"${airportSelector.value}": { zoom: ${currentZoom}, x: ${viewBox.x}, y: ${viewBox.y} r: ${degOffset} },`);
+                console.log(`"${airportSelector.value}": { zoom: ${groundCurrentZoom}, x: ${viewBox.x}, y: ${viewBox.y}, r: ${degOffset} },`);
             });
 
             svg.addEventListener('mouseup', e => {
@@ -902,38 +907,17 @@ function fetchMapLayerGround(container) {
                 e.preventDefault();
 
                 const zoomIntensity = 0.1;
-                const mouseX = e.offsetX;
-                const mouseY = e.offsetY;
-
-                //calculate relative position
-                const rect = svg.getBoundingClientRect();
-                const zoomPointX = viewBox.x + (e.clientX - rect.left) / rect.width * viewBox.width;
-                const zoomPointY = viewBox.y + (e.clientY - rect.top) / rect.height * viewBox.height;
-
-                //zoom in or out
                 const delta = e.deltaY < 0 ? 1 - zoomIntensity : 1 + zoomIntensity;
+
+                const centerX = viewBox.x + viewBox.width / 2;
+                const centerY = viewBox.y + viewBox.height / 2;
+
                 viewBox.width *= delta;
                 viewBox.height *= delta;
 
-                //adjust x/y so zoom is centered on cursor
-                console.log(zoomPointX - (mouseX / svg.clientWidth) * viewBox.width);
-                console.log(zoomPointY - (mouseY / svg.clientHeight) * viewBox.height);
-                viewBox.x = zoomPointX - (mouseX / svg.clientWidth) * viewBox.width;
-                viewBox.y = zoomPointY - (mouseY / svg.clientHeight) * viewBox.height;
-
-                const planeIcons = svg.querySelectorAll('.aircraft-icon');
-
-                planeIcons.forEach(child => {
-                    child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
-                });
-
-                const labels = svg.querySelectorAll('.aircraft-label');
-                labels.forEach(label => {
-                    label.setAttribute('font-size', label.getAttribute('font-size') * delta);
-                    label.setAttribute("x", label.getAttribute('x') * delta); 
-                    label.setAttribute("y", label.getAttribute('y') * delta); 
-                });
-
+                viewBox.x = centerX - viewBox.width / 2;
+                viewBox.y = centerY - viewBox.height / 2;
+                
                 groundCurrentZoom *= delta;
             });
         })
