@@ -248,6 +248,7 @@ function loadGroundChartSVG(airportSelector) {
     if (!groundDisplayToggle) {
         return;
     }
+
     const folder = airportSelector.value;
     const svgPath = `assets/maps/${folder}/GROUND.svg`;
 
@@ -292,7 +293,6 @@ function loadGroundChartSVG(airportSelector) {
             // Taxiways
             const taxiways = Array.from(loaded.querySelectorAll('g'))
                 .find(el => el.getAttribute('inkscape:label') === 'Taxiways / Ramps');
-            console.log(taxiways);
             if (taxiways) {
                 allShapes = taxiways.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
                 allShapes.forEach(el => {
@@ -384,7 +384,7 @@ groundDisplayButton.addEventListener("click", () => {
     chartsButton.style.display = 'none';
     groundContainer.style.width = '100%';
     sidePanelBackButton.style.display = 'block';
-    loadGroundDisplay()
+    loadGroundDisplay();
 });
 
 sidePanelBackButton.addEventListener("click", () => {
@@ -396,9 +396,27 @@ sidePanelBackButton.addEventListener("click", () => {
     sidePanelBackButton.style.display = 'none';
 });
 
+function waitForElement(selector, callback) {
+    const checkExist = setInterval(() => {
+        const el = document.querySelector(selector);
+        if (el) {
+            clearInterval(checkExist);
+            callback(el);
+        }
+    }, 100); // check every 100ms
+}
+
 function loadGroundDisplay(){
+    groundAircraftElements = {};
+    groundContainer.innerHTML = '';
     fetchMapLayerGround(groundContainer);
     loadGroundChartSVG(airportSelector);
+    setTimeout(() => {
+        if (aircraftData != null) {
+            updateGroundAircraftLayer(aircraftData);
+        }
+    }, 100);
+
 }
 
 //webSocket client to receive aircraft data
@@ -425,7 +443,7 @@ let groundAircraftElements = {}; // Maps aircraft ID to <g> element
 function updateGroundAircraftLayer(aircraftData) {
     const newIds = new Set();
     const svg = document.getElementById('ground-map-svg');
-    console.log('updating ground aircraft');
+    console.log('updating ground aircraft', aircraftData);
 
     let start = { x: 0, y: 0};
 
@@ -458,9 +476,6 @@ function updateGroundAircraftLayer(aircraftData) {
             group.setAttribute('id', `ac-${id}`);
             
             const icon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            icon.setAttribute('r', 2);
-            icon.setAttribute('r', parseFloat(icon.getAttribute('r')) * groundCurrentZoom);
-            icon.setAttribute('fill', 'red');
             icon.classList.add('ground-aircraft-icon');
 
             const planeIcon = getPlaneIcon(type, group, heading);
@@ -589,6 +604,9 @@ function updateGroundLabel(group, info, id){
     text.innerHTML = `
         <tspan id='span1' dx="0" dy="0em">${star + callsignMap.get(carrier) + number + ' ' + info.speed}kt ${acftTypeMap.get(info.aircraftType)}</tspan>
     `;
+    if (info.flightPlan == null){
+        text.innerHTML += " [NO FLP]"
+    }
     text.setAttribute('transform', `rotate(-${groundOffsetsMap.get(airportSelector.value).r})`);
 }
 
@@ -1097,6 +1115,7 @@ function fetchMapLayerGround(container) {
                 el.setAttribute('stroke', '#333333');
                 el.setAttribute('stroke-width', 1 * groundCurrentZoom);
             });
+            
 
             //get viewBox
             const viewBox = svg.viewBox.baseVal;
@@ -1217,7 +1236,7 @@ function fetchMapLayerGround(container) {
                     label.setAttribute("y", label.getAttribute('y') * delta); 
                 });
                 
-            });
+            });          
         })
         .catch(err => {
             console.error(err);
@@ -1236,7 +1255,6 @@ function fetchMapLayer(container) {
         })
         .then(async svgText => {
             svgText = svgText.replace(/(fill|stroke)="[^"]*"/g, '');
-            console.log(container);
             container.innerHTML += svgText;
 
             const svg = container.querySelector('svg');
@@ -1291,7 +1309,6 @@ function fetchMapLayer(container) {
                 const y = svgP.y;
 
                 if (!isMeasuring) {
-                    console.log('creating')
                     measuringLineStart = { x, y };
 
                     measuringline = document.createElementNS("http://www.w3.org/2000/svg", "line");
