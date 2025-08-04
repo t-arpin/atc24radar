@@ -524,7 +524,13 @@ function updateGroundAircraftLayer(aircraftData) {
                 if (e.button == 1){
                     const pin = label.getAttribute('pinned') == 'false' ? 'true' : 'false';
                     label.setAttribute('pinned', pin);
-                    updateGroundLabel(group, info, id)
+                    if (label.getAttribute('pinned') == 'true'){
+                        const text = group.querySelector('#span1');
+                        text.innerHTML = '★ ' + text.innerHTML;
+                    } else {
+                        //remove the star here
+                        group.querySelector('#span1').innerHTML = group.querySelector('#span1').innerHTML.replace(/^★\s*/, '');
+                    }
                 }
             });
 
@@ -549,6 +555,7 @@ function updateGroundAircraftLayer(aircraftData) {
 
             document.addEventListener('wheel', e => {
                 if (isOnGround) {
+                    console.log(info);
                     updateGroundLabel(group, info, id)
                     updateGroundConnector(group);
                 }
@@ -625,7 +632,7 @@ function updateGroundLabel(group, info, id){
         <tspan id='span1' dx="0" dy="0em">${star + callsignMap.get(carrier) + number + ' ' + info.speed}kt ${acftTypeMap.get(info.aircraftType)}</tspan>
     `;
     if (info.flightPlan == null){
-        text.innerHTML += " [NO FLP]"
+        text.querySelector('#span1').innerHTML += " [NO FLP]";
     }
     text.setAttribute('transform', `rotate(-${groundOffsetsMap.get(airportSelector.value).r})`);
 }
