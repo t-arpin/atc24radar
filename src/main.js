@@ -271,6 +271,52 @@ function loadGroundChartSVG(airportSelector) {
 
             loaded.setAttribute('id', 'groundCenter-svg');
 
+            //change colors
+            let allShapes = null;
+
+            // Taxiways Lines
+            const taxiwaysLines = Array.from(loaded.querySelectorAll('g'))
+                .find(el => el.getAttribute('inkscape:label') === 'Taxiway Lines');
+
+            if (taxiwaysLines) {
+                allShapes = taxiwaysLines.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+                allShapes.forEach(el => {
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+                    el.setAttribute('fill', 'none');
+                    el.setAttribute('stroke', 'black');
+                    el.setAttribute('stroke-width', 1.5 * groundCurrentZoom);
+                });
+            }
+
+            // Taxiways
+            const taxiways = Array.from(loaded.querySelectorAll('g'))
+                .find(el => el.getAttribute('inkscape:label') === 'Taxiways / Ramps');
+            console.log(taxiways);
+            if (taxiways) {
+                allShapes = taxiways.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+                allShapes.forEach(el => {
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+                    el.setAttribute('fill', '#414141');
+                });
+            }
+
+            // Buildings and Runways
+            const buildings = Array.from(loaded.querySelectorAll('g'))
+                .find(el => el.getAttribute('inkscape:label') === 'Runways / Buildings');
+
+            if (buildings) {
+                allShapes = buildings.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+                allShapes.forEach(el => {
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+                    el.setAttribute('fill', '#1b1b1bff');
+                    el.setAttribute('stroke', 'none');
+                    el.setAttribute('stroke-width', 0.5 * groundCurrentZoom);
+                });
+            }
+
         })
         .catch(err => {
             console.error(err);
@@ -421,8 +467,7 @@ function updateGroundAircraftLayer(aircraftData) {
 
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("fill", "white");
-            label.setAttribute("font-size", labelFontSize);
-            label.setAttribute('font-size', labelFontSize * groundCurrentZoom);
+            label.setAttribute('font-size', 12 * groundCurrentZoom);
             label.classList.add("ground-aircraft-label");
             label.setAttribute('id', "aircraft-label");
             label.setAttribute("x", defaultLabelOffset * groundCurrentZoom); // offset for label
@@ -470,9 +515,6 @@ function updateGroundAircraftLayer(aircraftData) {
             document.addEventListener('wheel', e => {
                 if (isOnGround) {
                     updateGroundLabel(group, info, id)
-                    document.querySelectorAll('.trail').forEach(trail => {
-                        trail.setAttribute('stroke-width', 1 * groundCurrentZoom);
-                    });
                     updateGroundConnector(group);
                 }
             });
@@ -542,10 +584,10 @@ function updateGroundLabel(group, info, id){
     const carrier = callsignParts[0];
     const number = callsignParts[1];
 
-    const star = label.getAttribute('pinned') == 'true' ? ' ★' : '';
+    const star = label.getAttribute('pinned') == 'true' ? '★ ' : '';
 
     text.innerHTML = `
-        <tspan id='span1' dx="0" dy="0em">${callsignMap.get(carrier) + number + star}</tspan>
+        <tspan id='span1' dx="0" dy="0em">${star + callsignMap.get(carrier) + number + ' ' + info.speed}kt ${acftTypeMap.get(info.aircraftType)}</tspan>
     `;
     text.setAttribute('transform', `rotate(-${groundOffsetsMap.get(airportSelector.value).r})`);
 }
@@ -911,12 +953,13 @@ function updateConnector(group){
     const bbox = text.getBBox();
     const connector = group.querySelector(".label-connector");
     const label = group.querySelector(".aircraft-label");
+    let textWidth = 0;
 
     connector.setAttribute("stroke-width", 0.5 * currentZoom);
 
     const circleCenter = { x: 0, y: 0 }; // center of group is (0, 0)
     if (text.querySelector("#tspan2") != null) {
-        const textWidth = text.querySelector("#tspan2").getBBox().width;
+        textWidth = text.querySelector("#tspan2").getBBox().width;
 
         if (textAlign == 'start') {
         textAlign = bbox.x > 0 ? 'start' : 'end';
@@ -1048,9 +1091,11 @@ function fetchMapLayerGround(container) {
 
             allShapes.forEach(el => {
                 // Remove Inkscape-style inline fill and style
-                //el.removeAttribute('style');
+                el.removeAttribute('style');
 
-                el.setAttribute('fill', '#000000');
+                el.setAttribute('fill', 'none');
+                el.setAttribute('stroke', '#333333');
+                el.setAttribute('stroke-width', 1 * groundCurrentZoom);
             });
 
             //get viewBox
