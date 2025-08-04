@@ -71,6 +71,7 @@ let textStart = null;
 let textEnd = null;
 let measuringLineStart = null;
 let textDistance = null;
+let previousChartTransform = null;
 
 const aircraftTrails = {};
 const maxTrailLength = 15;
@@ -177,6 +178,8 @@ airportSelector.addEventListener('change', () => {
     }
     if (chartsDisplayToggle) {
         addAirportChart(chartsContainer);
+    } else {
+        previousChartTransform = null;
     }
 });
 
@@ -513,20 +516,28 @@ function addAirportChart(container) {
         };
 
         function updateTransform() {
-            console.log(transform.y - ((container.clientHeight - img.naturalHeight) / 2));
+            previousChartTransform = transform;
             img.style.transform = 
                 `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale}) rotate(${transform.rotation}deg)`;
         }
 
-        // Center the image initially
-        transform.x = (container.clientWidth - img.naturalWidth) / 2;
-        transform.y = (container.clientHeight - img.naturalHeight) / 2;
+        if (previousChartTransform != null) {
+            transform = previousChartTransform;
+        } else {
+            // Center the image initially
+            transform.x = (container.clientWidth - img.naturalWidth) / 2;
+            transform.y = (container.clientHeight - img.naturalHeight) / 2;
+        }
         updateTransform();
 
         // Rotate button click
         rotateBtn.addEventListener("click", () => {
             transform.rotation -= 90;
             updateTransform();
+        });
+        
+        sidePanelBackButton.addEventListener("click", () => {
+            previousChartTransform = transform;
         });
 
         // Panning logic
@@ -543,6 +554,7 @@ function addAirportChart(container) {
         });
 
         window.addEventListener("mousemove", (e) => {
+            if (!isPanning) return;
             transform.x = e.clientX - start.x;
             transform.y = e.clientY - start.y;
             updateTransform();
@@ -553,13 +565,16 @@ function addAirportChart(container) {
             wrapper.style.cursor = "grab";
         });
 
-        // Zooming logic (centered at mouse)
         wrapper.addEventListener("wheel", (e) => {
             e.preventDefault();
-
+            
             const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-            transform.scale *= zoomFactor;
+            const newScale = transform.scale * zoomFactor;
 
+            if (newScale < 0.25250351893095774 || newScale > 1.1776727859952076) {
+                return;
+            }
+            transform.scale = newScale;
             updateTransform();
         });
     };
@@ -1001,11 +1016,17 @@ function updateAircraftLayer(aircraftData) {
 }
 
 function getPlaneIcon(type, group, heading) {
-    const svgPath = `assets/plane-Icons/${aircraftIconMap.get(type)}.svg`;
+    let svgPath = null;
+    if (aircraftIconMap.get(type) == undefined) {
+        svgPath = `assets/plane-Icons/GeneralAviation.svg`;
+    } else {
+        svgPath = `assets/plane-Icons/${aircraftIconMap.get(type)}.svg`;
+    }
+    
 
     fetch(svgPath)
         .then(response => {
-            if (!response.ok) throw new Error('Failed to load plane SVG: ' + response.status);
+            if (!response.ok) throw new Error('Failed to load plane SVG of type: ' + type + ', error:'+ response.status);
             return response.text();
         })
         .then(svgText => {
@@ -1025,7 +1046,7 @@ function getPlaneIcon(type, group, heading) {
             const cx = vb.x + vb.width / 2;
             const cy = vb.y + vb.height / 2;
 
-            const scale = aircraftScaleMap.get(aircraftIconMap.get(type)) || 1;
+            const scale = aircraftScaleMap.get(aircraftIconMap.get(type)) || 0.0005;
 
             // Wrap and transform: move center to 0,0 and apply scale
             const innerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
