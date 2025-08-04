@@ -23,7 +23,7 @@ html, body, #svg-container, #ground-svg-container, #charts-container {
     align-items: center;
     overflow: hidden;
     width: 0%;
-    background-color: black;
+    background-color: #00002f;
 }
 
 #charts-container {
@@ -70,19 +70,19 @@ html, body, #svg-container, #ground-svg-container, #charts-container {
 }
 
 .back-button {
-  border: none;
-  background-color: #303030;
-  font-size: 16px;
-  cursor: pointer;
-  display: none;
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  color: white;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  z-index: 2;
+    border: none;
+    background-color: #303030;
+    font-size: 16px;
+    cursor: pointer;
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    z-index: 2;
 }
 
 .back-button:hover {

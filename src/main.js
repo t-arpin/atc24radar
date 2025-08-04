@@ -1274,8 +1274,8 @@ function fetchMapLayerGround(container) {
                 // Remove Inkscape-style inline fill and style
                 el.removeAttribute('style');
 
-                el.setAttribute('fill', 'none');
-                el.setAttribute('stroke', '#333333');
+                el.setAttribute('fill', 'black');
+                el.setAttribute('stroke', 'none');
                 el.setAttribute('stroke-width', 1 * groundCurrentZoom);
             });
 
