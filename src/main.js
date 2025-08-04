@@ -23,6 +23,7 @@ const infoOverlay = document.getElementById('info-overlay');
 const closeButton = document.getElementById('close-icon');
 const groundContainer = document.getElementById('ground-svg-container');
 const sidePanelBackButton = document.getElementById('side-panel-back');
+const fullWideButton = document.getElementById('full-wide-button');
 
 //maps
 const airlineMap = new Map(Object.entries(AirlineMapJson));
@@ -43,7 +44,7 @@ const PORT = 4000;
 
 let zuluTime = false;
 let airspaceBoundsVisible = true;
-let sideDisplayToggle = false;
+let sideDisplayMode = 0;
 let groundDisplayToggle = false;
 let isDraggingLabel = { bool: false, label: null};
 let isDraggingGroundLabel = { bool: false, label: null};
@@ -363,20 +364,39 @@ groundButton.addEventListener('click', () => {
 });
 
 displayButton.addEventListener('click', () => {
-    sideDisplayToggle = !sideDisplayToggle;
-    container.style.width = sideDisplayToggle ? '50vw' : '100vw';
-    document.getElementById('side-display').style.width = sideDisplayToggle ? '50vw' : '0';
-    document.getElementById('resizer').style.width = sideDisplayToggle ? '1px' : '0';
-    displayButton.innerText = sideDisplayToggle ? '<' : '>';
+    if (sideDisplayMode == 2) {
+        expandCollapse();
+        return;
+    }
+    sideDisplayMode = sideDisplayMode == 0 ? 1 : 0;
+    container.style.width = sideDisplayMode ? '50vw' : '100vw';
+    document.getElementById('side-display').style.width = sideDisplayMode == 1 ? '50vw' : '0';
+    fullWideButton.style.display = sideDisplayMode == 1 ? 'block' : 'none';
+    resizer.style.width = sideDisplayMode == 1 ? '1px' : '0';
+    displayButton.innerText = sideDisplayMode == 1 ? '<' : '>';
     //hide all child elements of side-display
     const childElements = document.querySelectorAll('#side-display > *');
     childElements.forEach(child => {
         if (child != groundContainer && child != sidePanelBackButton) {
-            child.style.display = sideDisplayToggle && !groundDisplayToggle ? 'block' : 'none';
+            child.style.display = sideDisplayMode == 1 && !groundDisplayToggle ? 'block' : 'none';
         }
     });
-    sidePanelBackButton.style.display = sideDisplayToggle && groundDisplayToggle ? 'block' : 'none';
+    sidePanelBackButton.style.display = sideDisplayMode == 1 && groundDisplayToggle ? 'block' : 'none';
+        console.log(sideDisplayMode);
 });
+
+fullWideButton.addEventListener('click', () => {
+    expandCollapse();
+});
+
+function expandCollapse() {
+    sideDisplayMode = sideDisplayMode == 1 ? 2 : 1;
+    container.style.width = sideDisplayMode == 2 ? '0' : '50vw';
+    document.getElementById('side-display').style.width = sideDisplayMode == 2 ? '100vw' : '50vw';
+    resizer.style.width = sideDisplayMode == 1 ? '1px' : '0';
+    fullWideButton.style.display = sideDisplayMode == 2 ? 'none' : 'block';
+    console.log(sideDisplayMode);
+}
 
 groundDisplayButton.addEventListener("click", () => {
     groundDisplayToggle = !groundDisplayToggle;

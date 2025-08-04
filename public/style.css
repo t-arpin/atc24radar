@@ -164,6 +164,16 @@ a {
     z-index: 2;
 }
 
+#full-wide-button {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    bottom: 10px;
+    left: 50px;
+    z-index: 2;
+    display: none;
+}
+
 .aircraft-label {
     color: white;
     position: absolute;
