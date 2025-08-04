@@ -685,7 +685,6 @@ function updateGroundAircraftLayer(aircraftData) {
 
             document.addEventListener('wheel', e => {
                 if (isOnGround) {
-                    console.log(info);
                     updateGroundLabel(group, info, id)
                     updateGroundConnector(group);
                 }
@@ -693,14 +692,9 @@ function updateGroundAircraftLayer(aircraftData) {
 
         }
 
-        //handle trails only if aircraft is on the ground
-        if (isOnGround) {
-
+        if (isOnGround || altitude < 150) {
             //update position
             group.setAttribute('transform', `translate(${x / 100}, ${y / 100})`);
-
-            //hide/show ground aircraft
-            group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
 
             //label stuff
             updateGroundLabel(group, info, id)
@@ -708,7 +702,7 @@ function updateGroundAircraftLayer(aircraftData) {
             //update icon
             rotatePlaneIcon(group, heading);
         }
-
+        group.style.display = isOnGround || altitude < 150 ? 'block' : 'none';
 
     }
 
@@ -743,10 +737,10 @@ function updateGroundLabel(group, info, id) {
 
     if (info.flightPlan != null) {
         if (info.flightPlan.departing == airportSelector.value) {
-            color = '#48b8fb';
+            color = '#fce241';
         }
         if (info.flightPlan.arriving == airportSelector.value) {
-            color = '#fce241';
+            color = '#48b8fb';
         }
     }
 
@@ -1181,10 +1175,10 @@ function updateLabel(group, info, id) {
 
     if (info.flightPlan != null) {
         if (info.flightPlan.departing == airportSelector.value) {
-            color = '#48b8fb';
+            color = '#fce241';
         }
         if (info.flightPlan.arriving == airportSelector.value) {
-            color = '#fce241';
+            color = '#48b8fb';
         }
     }
 
