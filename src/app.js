@@ -12,6 +12,11 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+const altitudeThreshold = 100;
+const groundSpeedThreshold = 100;
+let isOnGround = null;
+    
+
 app.use(express.static('public'));
 
 // Internal flight plan storage by playerName
@@ -85,6 +90,8 @@ async function fetchAircraftData() {
             const playerName = ac.playerName;
             const flightPlan = playerName ? flightPlanMap.get(playerName) ?? null : null;
 
+            isOnGround = ac.altitude < altitudeThreshold && ac.groundSpeed < groundSpeedThreshold ? true : false;
+
             enrichedData[callsign] = {
                 heading: ac.heading,
                 altitude: ac.altitude,
@@ -93,7 +100,8 @@ async function fetchAircraftData() {
                 position: ac.position,
                 speed: ac.speed,
                 wind: ac.wind,
-                isOnGround: ac.isOnGround,
+                isOnGround: isOnGround,
+                isTaxiing: ac.isOnGround,
                 groundSpeed: ac.groundSpeed,
                 flightPlan // can be null
             };

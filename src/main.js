@@ -349,8 +349,9 @@ airspaceButton.addEventListener('click', () => {
 
 groundAircraftButton.addEventListener('click', () => {
     groundAircraftHidden = !groundAircraftHidden;
-    const mapSvg = document.getElementById('map-svg');
-    updateAircraftLayer(aircraftData, mapSvg);
+    document.querySelectorAll('.aircraft-group').forEach(group => {
+        group.style.display = groundAircraftHidden && group.getAttribute('isOnGround') == 'true' ? 'none' : 'block';
+    });
     groundAircraftButton.style.background = !groundAircraftHidden ? '#4d4d4d' : '#3E3E3E';
     groundAircraftButton.style.border = !groundAircraftHidden ? '3px solid #4B5DA3' : 'none';
 });
@@ -391,7 +392,6 @@ displayButton.addEventListener('click', () => {
         }
     });
     sidePanelBackButton.style.display = sideDisplayMode == 1 && groundDisplayToggle ? 'block' : 'none';
-    console.log(sideDisplayMode);
 });
 
 fullWideButton.addEventListener('click', () => {
@@ -404,7 +404,6 @@ function expandCollapse() {
     sideDisplay.style.width = sideDisplayMode == 2 ? '100vw' : '50vw';
     resizer.style.width = sideDisplayMode == 1 ? '1px' : '0';
     fullWideButton.style.display = sideDisplayMode == 2 ? 'none' : 'block';
-    console.log(sideDisplayMode);
 }
 
 groundDisplayButton.addEventListener("click", () => {
@@ -546,7 +545,6 @@ function addAirportChart(container) {
 
         wrapper.addEventListener("mousedown", (e) => {
             e.preventDefault();
-            if (e.button !== 0) return; // left click only
             isPanning = true;
             start.x = e.clientX - transform.x;
             start.y = e.clientY - transform.y;
@@ -563,6 +561,10 @@ function addAirportChart(container) {
         window.addEventListener("mouseup", () => {
             isPanning = false;
             wrapper.style.cursor = "grab";
+        });
+
+        wrapper.addEventListener('contextmenu', e => {
+            e.preventDefault();
         });
 
         wrapper.addEventListener("wheel", (e) => {
@@ -590,14 +592,13 @@ function addAirportChart(container) {
 //aircraft fetures
 let groundAircraftElements = {}; // Maps aircraft ID to <g> element
 
-function updateGroundAircraftLayer(aircraftData) {
+function updateGroundAircraftLayer(data) {
     const newIds = new Set();
     const svg = document.getElementById('ground-map-svg');
-    console.log('updating ground aircraft', aircraftData);
 
     let start = { x: 0, y: 0 };
 
-    for (const [id, info] of Object.entries(aircraftData)) {
+    for (const [id, info] of Object.entries(data)) {
         //extract aircraft info
         const heading = info.heading;
         const player = info.playerName;
@@ -715,14 +716,6 @@ function updateGroundAircraftLayer(aircraftData) {
             }
             delete groundAircraftElements[id];
             console.log(`Removed ground aircraft ${id}`);
-
-            // Also remove trail
-            const trail = document.getElementById(`trail-${id}`);
-            if (trail && trail.parentNode) {
-                trail.parentNode.removeChild(trail);
-            }
-
-            delete aircraftTrails[id];
         }
     }
 
@@ -733,7 +726,7 @@ function updateGroundLabel(group, info, id) {
     const text = group.querySelector("text");
     const label = group.querySelector(".ground-aircraft-label");
 
-    let color = 'white'
+    let color = 'white';
 
     if (info.flightPlan != null) {
         if (info.flightPlan.departing == airportSelector.value) {
@@ -742,9 +735,8 @@ function updateGroundLabel(group, info, id) {
         if (info.flightPlan.arriving == airportSelector.value) {
             color = '#48b8fb';
         }
+        text.setAttribute("fill", color);
     }
-
-    text.setAttribute("fill", color);
 
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];
@@ -834,7 +826,7 @@ function labelGroundMove(e, label, svg, group, start) {
 //aircraft fetures
 let aircraftElements = {}; // Maps aircraft ID to <g> element
 
-function updateAircraftLayer(aircraftData) {
+function updateAircraftLayer(data) {
     const newIds = new Set();
     const svg = document.getElementById('map-svg');
 
@@ -847,7 +839,7 @@ function updateAircraftLayer(aircraftData) {
 
     let start = { x: 0, y: 0 };
 
-    for (const [id, info] of Object.entries(aircraftData)) {
+    for (const [id, info] of Object.entries(data)) {
         //extract aircraft info
         const heading = info.heading;
         const player = info.playerName;
@@ -874,6 +866,7 @@ function updateAircraftLayer(aircraftData) {
             console.log(`Creating new group for aircraft ${id}`);
             group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.setAttribute('id', `ac-${id}`);
+            group.classList.add('aircraft-group');
 
             const icon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             icon.setAttribute('r', 2);
@@ -908,7 +901,7 @@ function updateAircraftLayer(aircraftData) {
                 if (e.button == 1) {
                     const pin = label.getAttribute('pinned') == 'false' ? 'true' : 'false';
                     label.setAttribute('pinned', pin);
-                    updateLabel(group, info, id);
+                    updateLabel(group, aircraftData[id], id);
                 }
             });
 
@@ -938,8 +931,8 @@ function updateAircraftLayer(aircraftData) {
 
             aircraftElements[id] = group;
 
-            document.addEventListener('wheel', e => {
-                updateLabel(group, info, id);
+            svg.addEventListener('wheel', e => {
+                updateLabel(group, aircraftData[id], id);
                 document.querySelectorAll('.trail').forEach(trail => {
                     trail.setAttribute('stroke-width', 1 * currentZoom);
                 });
@@ -974,6 +967,8 @@ function updateAircraftLayer(aircraftData) {
 
         //hide/show ground aircraft
         group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
+
+        group.setAttribute('isOnGround', isOnGround);
 
         //label stuff
         updateLabel(group, info, id);
@@ -1161,16 +1156,15 @@ function updateLabel(group, info, id) {
     const label = group.querySelector(".aircraft-label");
     const connector = group.querySelector(".label-connector");
 
-    if (info.isOnGround && currentZoom > 0.09651739612301583 && label.getAttribute('pinned') == 'false') {
-
+    if (group.getAttribute('isOnGround') == 'true' && currentZoom > 0.09651739612301583 && label.getAttribute('pinned') == 'false') {
         text.innerHTML = '';
         label.setAttribute('display', 'none');
         connector.setAttribute('display', 'none');
         return;
+    } else {
+        label.setAttribute('display', 'block');
+        connector.setAttribute('display', 'block');
     }
-    label.setAttribute('display', 'block');
-    connector.setAttribute('display', 'block');
-
     let color = 'white'
 
     if (info.flightPlan != null) {
@@ -1180,9 +1174,12 @@ function updateLabel(group, info, id) {
         if (info.flightPlan.arriving == airportSelector.value) {
             color = '#48b8fb';
         }
+        text.setAttribute("fill", color);
     }
 
-    text.setAttribute("fill", color);
+    label.setAttribute('font-size', labelFontSize * currentZoom);
+    label.setAttribute("x", defaultLabelOffset * currentZoom); // offset for label
+    label.setAttribute("y", 2 * currentZoom); // offset for label
 
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];
@@ -1380,12 +1377,6 @@ function fetchMapLayerGround(container) {
                 viewBox.x = centerX - viewBox.width / 2;
                 viewBox.y = centerY - viewBox.height / 2;
 
-                const planeIcons = svg.querySelectorAll('.ground-aircraft-icon');
-
-                planeIcons.forEach(child => {
-                    child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
-                });
-
                 const labels = svg.querySelectorAll('.ground-aircraft-label');
                 labels.forEach(label => {
                     label.setAttribute('font-size', label.getAttribute('font-size') * delta);
@@ -1571,14 +1562,7 @@ function fetchMapLayer(container) {
 
                 planeIcons.forEach(child => {
                     child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
-                });
-
-                const labels = svg.querySelectorAll('.aircraft-label');
-                labels.forEach(label => {
-                    label.setAttribute('font-size', label.getAttribute('font-size') * delta);
-                    label.setAttribute("x", label.getAttribute('x') * delta);
-                    label.setAttribute("y", label.getAttribute('y') * delta);
-                });
+                });                
 
                 currentZoom *= delta;
                 //console.log(currentZoom);
