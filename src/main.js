@@ -1,6 +1,6 @@
 import AirlineMapJson from "/atc24radar/src/data/AirlineMap.js";
 import AcftTypeMapJson from "/atc24radar/src/data/AcftTypeMap.js";
-import CallsignMapJson from "/atc24radar/src/data/callsignMap.js";
+import CallsignMapJson from "/atc24radar/src/data/CallsignMap.js";
 import StationMap from "/atc24radar/src/data/StationMap.js";
 import AirportNamesMap from "/atc24radar/src/data/AirportNamesMap.js";
 import AircraftIconMap from "/atc24radar/src/data/AircraftIconMap.js";
