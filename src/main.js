@@ -1,11 +1,11 @@
-import AirlineMapJson from "/src/data/AirlineMap.js";
-import AcftTypeMapJson from "/src/data/AcftTypeMap.js";
-import CallsignMapJson from "/src/data/callsignMap.js";
-import StationMap from "/src/data/StationMap.js";
-import AirportNamesMap from "/src/data/AirportNamesMap.js";
-import AircraftIconMap from "/src/data/AircraftIconMap.js";
-import AircraftScaleMap from "/src/data/AircraftScaleMap.js";
-import GroundOffsets from "/src/data/GroundOffsets.js";
+import AirlineMapJson from "/atc24radar/src/data/AirlineMap.js";
+import AcftTypeMapJson from "/atc24radar/src/data/AcftTypeMap.js";
+import CallsignMapJson from "/atc24radar/src/data/callsignMap.js";
+import StationMap from "/atc24radar/src/data/StationMap.js";
+import AirportNamesMap from "/atc24radar/src/data/AirportNamesMap.js";
+import AircraftIconMap from "/atc24radar/src/data/AircraftIconMap.js";
+import AircraftScaleMap from "/atc24radar/src/data/AircraftScaleMap.js";
+import GroundOffsets from "/atc24radar/src/data/GroundOffsets.js";
 
 //html elements
 const container = document.getElementById('svg-container');
