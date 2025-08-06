@@ -462,7 +462,7 @@ function loadGroundDisplay() {
 }
 
 //webSocket client to receive aircraft data
-const socket = new WebSocket(`ws://localhost:${PORT}`);
+const socket = new WebSocket(`wss://atc24radar-server.onrender.com`);
 
 socket.onmessage = event => {
     const message = JSON.parse(event.data);
