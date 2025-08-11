@@ -76,9 +76,8 @@ let groundAircraftElements = {}; // Maps aircraft ID to <g> element
 const aircraftTrails = {};
 const maxTrailLength = 15;
 
-fetchMapLayer(container);
-
 window.addEventListener('load', function () {
+    fetchMapLayer(container);
     loadAirportData(airportSelector);
 });
 
@@ -198,29 +197,15 @@ function loadAirportData(airportSelector) {
             }
 
             const mapSvg = document.getElementById('boundaries-svg');
-            mapSvg.innerHTML += svgText;
+            setTimeout(() => {
+                mapSvg.innerHTML += svgText;
 
-            const loaded = mapSvg.querySelector('svg:last-of-type');
-            if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
+                const loaded = mapSvg.querySelector('svg:last-of-type');
+                if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
 
-            loaded.setAttribute('id', 'groundview-svg');
-            loaded.style.display = groundViewVisible ? 'block' : 'none';
+                loaded.setAttribute('id', 'groundview-svg');
+                loaded.style.display = groundViewVisible ? 'block' : 'none';
 
-            const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-
-            allShapes.forEach(el => {
-                // Remove Inkscape-style inline fill and style
-                el.removeAttribute('fill');
-                el.removeAttribute('style');
-
-                // Set a clean white stroke and no fill
-                el.setAttribute('fill', 'none');
-                el.setAttribute('stroke', '#000000');
-                el.setAttribute('stroke-width', currentZoom * 1); // Adjust stroke thickness as needed
-
-            });
-
-            document.addEventListener('wheel', e => {
                 const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
 
                 allShapes.forEach(el => {
@@ -232,8 +217,24 @@ function loadAirportData(airportSelector) {
                     el.setAttribute('fill', 'none');
                     el.setAttribute('stroke', '#000000');
                     el.setAttribute('stroke-width', currentZoom * 1); // Adjust stroke thickness as needed
+
                 });
-            });
+
+                document.addEventListener('wheel', e => {
+                    const allShapes = loaded.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+
+                    allShapes.forEach(el => {
+                        // Remove Inkscape-style inline fill and style
+                        el.removeAttribute('fill');
+                        el.removeAttribute('style');
+
+                        // Set a clean white stroke and no fill
+                        el.setAttribute('fill', 'none');
+                        el.setAttribute('stroke', '#000000');
+                        el.setAttribute('stroke-width', currentZoom * 1); // Adjust stroke thickness as needed
+                    });
+                });
+            }, 100);
         })
         .catch(err => {
             console.error(err);
