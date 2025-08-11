@@ -1,11 +1,11 @@
-import AirlineMapJson from "/atc24radar/src/data/AirlineMap.js";
-import AcftTypeMapJson from "/atc24radar/src/data/AcftTypeMap.js";
-import CallsignMapJson from "/atc24radar/src/data/CallsignMap.js";
-import StationMap from "/atc24radar/src/data/StationMap.js";
-import AirportNamesMap from "/atc24radar/src/data/AirportNamesMap.js";
-import AircraftIconMap from "/atc24radar/src/data/AircraftIconMap.js";
-import AircraftScaleMap from "/atc24radar/src/data/AircraftScaleMap.js";
-import GroundOffsets from "/atc24radar/src/data/GroundOffsets.js";
+import AirlineMapJson from "../src/data/AirlineMap.js";
+import AcftTypeMapJson from "../src/data/AcftTypeMap.js";
+import CallsignMapJson from "../src/data/CallsignMap.js";
+import StationMap from "../src/data/StationMap.js";
+import AirportNamesMap from "../src/data/AirportNamesMap.js";
+import AircraftIconMap from "../src/data/AircraftIconMap.js";
+import AircraftScaleMap from "../src/data/AircraftScaleMap.js";
+import GroundOffsets from "../src/data/GroundOffsets.js";
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -23,9 +23,11 @@ const infoOverlay = document.getElementById('info-overlay');
 const closeButton = document.getElementById('close-icon');
 const groundContainer = document.getElementById('ground-svg-container');
 const chartsContainer = document.getElementById('charts-container');
-const sidePanelBackButton = document.getElementById('side-panel-back');
 const fullWideButton = document.getElementById('full-wide-button');
 const sideDisplay = document.getElementById('side-display');
+const sidePanelContent = document.getElementById('side-panel-content');
+const sideButton1 = document.getElementById('side-window-1-button');
+const sideButton2 = document.getElementById('side-window-2-button');
 
 //maps
 const airlineMap = new Map(Object.entries(AirlineMapJson));
@@ -46,7 +48,6 @@ const PORT = 4000;
 
 let zuluTime = false;
 let airspaceBoundsVisible = true;
-let sideDisplayMode = 0;
 let groundDisplayToggle = false;
 let chartsDisplayToggle = false;
 let isDraggingLabel = { bool: false, label: null };
@@ -57,10 +58,8 @@ let groundCurrentZoom = 0.04;
 let labelFontSize = 10;
 let aircraftData = {};
 let groundAircraftHidden = false;
-let labelPadding = 50;
 let defaultLabelOffset = 5;
 let groundViewVisible = false;
-let currentGroundSvg = null;
 let start = { x: 0, y: 0 };
 let offsetInfoOverlay = { x: 0, y: 0 };
 let curentAircraftId = null;
@@ -72,6 +71,7 @@ let textEnd = null;
 let measuringLineStart = null;
 let textDistance = null;
 let previousChartTransform = null;
+let groundAircraftElements = {}; // Maps aircraft ID to <g> element
 
 const aircraftTrails = {};
 const maxTrailLength = 15;
@@ -171,16 +171,14 @@ function updateOverlay(id, info) {
 
 airportSelector.addEventListener('change', () => {
     loadAirportData(airportSelector);
-    if (groundDisplayToggle) {
-        groundContainer.innerHTML = '';
-        groundAircraftElements = {};
-        loadGroundDisplay();
-    }
-    if (chartsDisplayToggle) {
-        addAirportChart(chartsContainer);
-    } else {
+    groundAircraftElements = {};
+    document.querySelectorAll('#ground-container').forEach(cont => {
+        loadGroundDisplay(cont.parentElement);
+    });
+    document.querySelectorAll('#chart-container').forEach(cont => {
+        addAirportChart(cont.parentElement);
         previousChartTransform = null;
-    }
+    });
 });
 
 function loadAirportData(airportSelector) {
@@ -254,11 +252,7 @@ function loadAirportData(airportSelector) {
         `;
 }
 
-function loadGroundChartSVG(airportSelector) {
-    if (!groundDisplayToggle) {
-        return;
-    }
-
+function loadGroundChartSVG(airportSelector, cont) {
     const folder = airportSelector.value;
     const svgPath = `assets/maps/${folder}/GROUND.svg`;
 
@@ -269,12 +263,12 @@ function loadGroundChartSVG(airportSelector) {
         })
         .then(svgText => {
             // Remove existing ground SVG
-            const existing = document.getElementById('groundCenter-svg');
+            const existing = cont.querySelector('#groundCenter-svg');
             if (existing) {
                 existing.parentNode.removeChild(existing);
             }
 
-            const mapSvg = document.getElementById('ground-map-svg');
+            const mapSvg = cont.querySelector('#ground-map-svg');
             mapSvg.innerHTML += svgText;
 
             const loaded = mapSvg.querySelector('svg:last-of-type');
@@ -321,7 +315,7 @@ function loadGroundChartSVG(airportSelector) {
                 allShapes.forEach(el => {
                     el.removeAttribute('fill');
                     el.removeAttribute('style');
-                    el.setAttribute('fill', '#1b1b1bff');
+                    el.setAttribute('fill', '#222222');
                     el.setAttribute('stroke', 'none');
                     el.setAttribute('stroke-width', 0.5 * groundCurrentZoom);
                 });
@@ -374,24 +368,27 @@ groundButton.addEventListener('click', () => {
 });
 
 displayButton.addEventListener('click', () => {
-    if (sideDisplayMode == 2) {
+    if (sideDisplay.style.width == '100vw') {
         expandCollapse();
         return;
     }
-    sideDisplayMode = sideDisplayMode == 0 ? 1 : 0;
-    container.style.width = sideDisplayMode ? '50vw' : '100vw';
-    sideDisplay.style.width = sideDisplayMode == 1 ? '50vw' : '0';
-    fullWideButton.style.display = sideDisplayMode == 1 ? 'block' : 'none';
-    resizer.style.width = sideDisplayMode == 1 ? '1px' : '0';
-    displayButton.innerText = sideDisplayMode == 1 ? '<' : '>';
-    //hide all child elements of side-display
-    const childElements = document.querySelectorAll('#side-display > *');
-    childElements.forEach(child => {
-        if (child != groundContainer && child != sidePanelBackButton && child != chartsContainer) {
-            child.style.display = sideDisplayMode == 1 && !groundDisplayToggle ? 'block' : 'none';
-        }
-    });
-    sidePanelBackButton.style.display = sideDisplayMode == 1 && groundDisplayToggle ? 'block' : 'none';
+    if (container.style.width == '50vw'){
+        displayButton.style.left = '10px';
+        container.style.width = '100vw';
+        sideDisplay.style.width = '0';
+        fullWideButton.style.display = 'none';
+        sidePanelContent.style.display = 'none';
+        resizer.style.width = '0';
+        displayButton.innerText = '▶';
+    } else {
+        displayButton.style.left = `${(window.innerWidth / 2) + 10}px`;
+        container.style.width = '50vw';
+        sideDisplay.style.width = '50vw';
+        fullWideButton.style.display = 'block';
+        sidePanelContent.style.display = 'flex';
+        resizer.style.width = '1px';
+        displayButton.innerText = '◀';
+    }
 });
 
 fullWideButton.addEventListener('click', () => {
@@ -399,70 +396,98 @@ fullWideButton.addEventListener('click', () => {
 });
 
 function expandCollapse() {
-    sideDisplayMode = sideDisplayMode == 1 ? 2 : 1;
-    container.style.width = sideDisplayMode == 2 ? '0' : '50vw';
-    sideDisplay.style.width = sideDisplayMode == 2 ? '100vw' : '50vw';
-    resizer.style.width = sideDisplayMode == 1 ? '1px' : '0';
-    fullWideButton.style.display = sideDisplayMode == 2 ? 'none' : 'block';
+    if (sideDisplay.style.width == '100vw') {
+        displayButton.style.left = `${(window.innerWidth / 2) + 10}px`;
+        container.style.width = '50vw';
+        sideDisplay.style.width = '50vw';
+        resizer.style.width = '1px';
+        fullWideButton.style.display = 'block';
+    } else {
+        displayButton.style.left = `${window.innerWidth - 40}px`;
+        container.style.width = '0';
+        sideDisplay.style.width = '100vw';
+        resizer.style.width = '0';
+        fullWideButton.style.display = 'none';
+    }
 }
 
-groundDisplayButton.addEventListener("click", () => {
-    groundDisplayToggle = !groundDisplayToggle;
-    chartsContainer.style.display = 'none';
-    groundContainer.style.display = 'flex';
-    groundDisplayButton.style.display = 'none';
-    chartsButton.style.display = 'none';
-    groundContainer.style.width = '100%';
-    sidePanelBackButton.style.display = 'block';
-    loadGroundDisplay();
+sideButton1.addEventListener('click', () => {
+    const sideWindow1 = document.getElementById('side-window-1');
+    const sideWindow2 = document.getElementById('side-window-2');
+    sideWindow1.style.height = sideWindow1.style.height == '50%' ? '100%' : '50%';
+    sideWindow2.style.display = sideWindow2.style.display == 'flex' ? 'none' : 'flex';
+    sideButton1.innerHTML = sideButton1.innerHTML == '▼' ? '▲' : '▼';
 });
 
-sidePanelBackButton.addEventListener("click", () => {
-    if (groundDisplayToggle) {
-        groundContainer.innerHTML = '';
-        groundDisplayToggle = false;
-        groundDisplayButton.style.display = 'block';
-        chartsButton.style.display = 'block';
-        groundContainer.style.width = '0%';
-        sidePanelBackButton.style.display = 'none';
-    }
-    if (chartsDisplayToggle) {
-        chartsContainer.innerHTML = '';
-        chartsDisplayToggle = false;
-        groundDisplayButton.style.display = 'block';
-        chartsButton.style.display = 'block';
-        chartsContainer.style.width = '0%';
-        sidePanelBackButton.style.display = 'none';
-    }
+sideButton2.addEventListener('click', () => {
+    const sideWindow1 = document.getElementById('side-window-1');
+    const sideWindow2 = document.getElementById('side-window-2');
+    sideWindow2.style.height = sideWindow2.style.height == '100%' ? '50%' : '100%';
+    sideWindow1.style.display = sideWindow1.style.display == 'none' ? 'flex' : 'none';
+    sideButton2.innerHTML = sideButton2.innerHTML == '▼' ? '▲' : '▼';
 });
 
-chartsButton.addEventListener("click", () => {
-    chartsDisplayToggle = !chartsDisplayToggle;
-    chartsContainer.style.display = 'flex';
-    groundContainer.style.display = 'none';
-    groundDisplayButton.style.display = 'none';
-    chartsButton.style.display = 'none';
-    chartsContainer.style.width = '100%';
-    sidePanelBackButton.style.display = 'block';
-    //sideDisplay.style.width = (sideDisplay.getBoundingClientRect().height * 0.8) * 2245 / 1587 + 'px';
-    addAirportChart(chartsContainer);
+window.addEventListener('load', function () {
+    const sideButtons = document.querySelectorAll('.sidebar-button');
+    sideButtons.forEach(button => {
+        const id = button.getAttribute('id');
+        console.log(id);
+        button.addEventListener('click', () => {
+            const container = button.parentElement;
+            const buttons = container.querySelectorAll('.sidebar-button');
+            buttons.forEach(child => {
+                child.style.display = 'none';
+            });
+
+            //create back button
+            const backButton = document.createElement('button');
+            backButton.setAttribute('id', 'side-panel-back');
+            backButton.classList.add('back-button');
+            backButton.innerHTML = '↩'
+            container.appendChild(backButton);
+
+            backButton.addEventListener('click', () => {
+                Array.from(container.children).forEach(child => {
+                    if (child.classList.contains('sidebar-button') || child.classList.contains('side-window-button')){
+                        child.style.display = 'block';
+                    } else {
+                        child.remove();
+                    }
+                });
+            });
+
+            //find corret function, can replace with switch later
+            if (id == 'groundview-button'){
+                loadGroundDisplay(button.parentElement)
+            } else if (id == 'charts-button') {
+                addAirportChart(button.parentElement);
+            }
+        });
+    });
 });
 
-function loadGroundDisplay() {
+
+function loadGroundDisplay(cont) {
     groundAircraftElements = {};
-    groundContainer.innerHTML = '';
-    fetchMapLayerGround(groundContainer);
-    loadGroundChartSVG(airportSelector);
+    if (cont.querySelector('.ground-svg-container')) {
+        cont.querySelector('.ground-svg-container').remove();
+    }
+    const groundView = document.createElement('div');
+    groundView.classList.add('ground-svg-container');
+    groundView.setAttribute('id', 'ground-container')
+    cont.appendChild(groundView);
+    fetchMapLayerGround(groundView);
+    loadGroundChartSVG(airportSelector, groundView);
     setTimeout(() => {
         if (aircraftData != null) {
             updateGroundAircraftLayer(aircraftData);
         }
     }, 100);
-
 }
 
 //webSocket client to receive aircraft data
-const socket = new WebSocket(`wss://atc24radar-server.onrender.com`);
+//const socket = new WebSocket(`wss://atc24radar-server.onrender.com`);
+const socket = new WebSocket(`ws://localhost:${PORT}`);
 
 socket.onmessage = event => {
     const message = JSON.parse(event.data);
@@ -482,16 +507,19 @@ socket.onerror = err => console.error('WebSocket error:', err);
 function addAirportChart(container) {
     const chartUrl = `https://ptfs.app/charts/dark/${airportSelector.value}%20Ground%20Chart.png`;
 
-    // Remove old chart if it exists
-    const oldChart = document.getElementById("airport-chart-wrapper");
-    if (oldChart) oldChart.remove();
+    if (container.querySelector('.charts-container')) {
+        container.querySelector('.charts-container').remove();
+    }
+    const chartView = document.createElement('div');
+    chartView.classList.add('charts-container');
+    chartView.setAttribute('id', 'chart-container')
+    container.appendChild(chartView);
 
     // Create wrapper
-    container.innerHTML = ''; // Clear previous contents
     const wrapper = document.createElement('div');
     wrapper.className = 'chart-wrapper';
     wrapper.style.position = 'relative'; // so button can be placed inside
-    container.appendChild(wrapper);
+    chartView.appendChild(wrapper);
 
     const img = document.createElement('img');
     img.src = chartUrl;
@@ -534,8 +562,8 @@ function addAirportChart(container) {
             transform.rotation -= 90;
             updateTransform();
         });
-        
-        sidePanelBackButton.addEventListener("click", () => {
+
+        container.querySelector('#side-panel-back').addEventListener("click", () => {
             previousChartTransform = transform;
         });
 
@@ -586,12 +614,7 @@ function addAirportChart(container) {
     };
 }
 
-
-
-
 //aircraft fetures
-let groundAircraftElements = {}; // Maps aircraft ID to <g> element
-
 function updateGroundAircraftLayer(data) {
     const newIds = new Set();
     const svg = document.getElementById('ground-map-svg');
@@ -1270,6 +1293,38 @@ function fetchMapLayerGround(container) {
                 el.setAttribute('stroke-width', 1 * groundCurrentZoom);
             });
 
+            //slider
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = 1;
+            slider.max = 2;
+            slider.step = 0.01;
+            slider.value = 1;
+            slider.style.cssText = `
+                -webkit-appearance: none;
+                height: 5px;
+                width: 50px;
+                border-radius: 5px;
+                background: #333;
+                outline: none;
+                position: absolute;
+                bottom: 20px;
+                justify-self: center;
+            `;
+            slider.type = 'range';
+            slider.min = '0.5';
+            slider.max = '1.5';
+            slider.step = '0.1';
+            slider.value = 1;
+
+            slider.addEventListener('input', () => {
+                const labels = svg.querySelectorAll('.ground-aircraft-label');
+                labels.forEach(label => {
+                    label.setAttribute('font-size', 12 * groundCurrentZoom * slider.value);
+                });
+            });
+
+            container.appendChild(slider);
 
             //get viewBox
             const viewBox = svg.viewBox.baseVal;
@@ -1288,6 +1343,7 @@ function fetchMapLayerGround(container) {
             svg.style.transform = `rotate(${rotation}deg)`
 
             //zoom in or out
+            console.log(airportSelector.value);
             let maxZoom = groundOffsetsMap.get(airportSelector.value).zoom;
             groundCurrentZoom = maxZoom;
             viewBox.x = groundOffsetsMap.get(airportSelector.value).x;

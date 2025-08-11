@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css">
     <title>atc24radar</title>
-    <script type="module" src="/atc24radar/src/main.js"></script>
+    <script type="module" src="../src/main.js"></script>
 </head>
 <body>
     <div id="top-bar">
@@ -47,12 +47,21 @@
     </div>
 
     <div id="side-display">
-        <button id="side-panel-back" class="back-button">↩</button>
-        <div id="ground-svg-container"></div>
-        <div id="charts-container"></div>
-        <button id="groundview-button" class="sidebar-button">Ground view</button>
-        <button id="charts-button" class="sidebar-button">Charts</button>
+        <div id="side-panel-content">
+            <div id="side-window-1" class="side-window">
+                <button id="groundview-button" class="sidebar-button">Ground view</button>
+                <button id="charts-button" class="sidebar-button">Charts</button>
+                <button id="side-window-1-button" class="side-window-button menu-button">▲</button>
+            </div>
+            <div id="side-window-2" class="side-window">
+                <button id="groundview-button" class="sidebar-button">Ground view</button>
+                <button id="charts-button" class="sidebar-button">Charts</button>
+                <button id="side-window-2-button" class="side-window-button menu-button">▲</button>
+            </div>
+        </div>
+        <button id="full-wide-button" class="menu-button">▶</button>
     </div>
+    <button id="display-button" class="menu-button">▶</button>
     <button id="resizer"></button>
     <div id="svg-container"></div>
 
@@ -63,42 +72,18 @@
             <line x1="27" y1="13" x2="13" y2="27" stroke="#80060d" stroke-width="3" stroke-linecap="round" />
         </svg>
         <div id="callsign-container">
-            <div id="callsign-bar">Example-1234</div>
-            <div id="aircraft-tag">A320</div>
+            <div id="callsign-bar"></div>
+            <div id="aircraft-tag"></div>
         </div>
-        <div id="player-name">Tristan3D3</div>
+        <div id="player-name"></div>
         <div id="aircraft-image">
             <img>Comming soon...</img>
         </div>
-        <div id="route-container">
-            <div id="departure" class="route">
-                N/A
-                <span class="airport-name">Not available</span>
-            </div>
-            <div id="arival" class="route">
-                N/A
-                <span class="airport-name">Not available</span>
-            </div>
-            <div id="plane-icon-container"></div>
-        </div>
+        <div id="route-container"></div>
         <div id="detailed-info-container">
-            <div id="details-spacer">
-            
-            </div>
-            <div id="detailed-info">
-                <span style="margin-bottom: 4px;">Swiss International Air Lines</span>
-                <span>Aircraft Type : (A320)</span>
-                <span>Airbus A320-212</span>
-                <hr style="width: 100%;"></hr>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Altitude: 3000ft</span>
-                    <span >Heading: 300.</span>
-                    <span >Speed: 250kt</span>
-                </div>
-            </div>
+            <div id="details-spacer"></div>
+            <div id="detailed-info"></div>
         </div>
     </div>
-    <button id="display-button" class="menu-button">></button>
-    <button id="full-wide-button" class="menu-button">></button>
 </body>
 </html>
