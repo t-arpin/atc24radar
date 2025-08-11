@@ -480,7 +480,7 @@ function loadGroundDisplay(cont) {
     loadGroundChartSVG(airportSelector, groundView);
     setTimeout(() => {
         if (aircraftData != null) {
-            updateGroundAircraftLayer(aircraftData);
+            updateGroundAircraftLayer(aircraftData, groundView);
         }
     }, 100);
 }
@@ -496,9 +496,10 @@ socket.onmessage = event => {
         const enrichedAircraftMap = message.data; // object with callsign keys
         aircraftData = enrichedAircraftMap;
         updateAircraftLayer(enrichedAircraftMap);
-        if (groundDisplayToggle) {
-            updateGroundAircraftLayer(enrichedAircraftMap);
-        }
+        document.querySelectorAll('#ground-container').forEach(cont => {
+            console.log(cont.parentElement);
+            updateGroundAircraftLayer(enrichedAircraftMap, cont);
+        });
     }
 };
 
@@ -615,9 +616,9 @@ function addAirportChart(container) {
 }
 
 //aircraft fetures
-function updateGroundAircraftLayer(data) {
+function updateGroundAircraftLayer(data, cont) {
     const newIds = new Set();
-    const svg = document.getElementById('ground-map-svg');
+    const svg = cont.querySelector('#ground-map-svg');
 
     let start = { x: 0, y: 0 };
 
@@ -707,9 +708,9 @@ function updateGroundAircraftLayer(data) {
 
             groundAircraftElements[id] = group;
 
-            document.addEventListener('wheel', e => {
+            svg.addEventListener('wheel', e => {
                 if (isOnGround) {
-                    updateGroundLabel(group, info, id)
+                    updateGroundLabel(group, aircraftData[id], id)
                     updateGroundConnector(group);
                 }
             });
