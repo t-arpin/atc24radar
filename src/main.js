@@ -11,23 +11,21 @@ import GroundOffsets from "../src/data/GroundOffsets.js";
 const container = document.getElementById('svg-container');
 const timeDisplay = document.getElementById('time');
 const timeButton = document.getElementById('time-button');
-const airspaceButton = document.getElementById('airspace-bounds');
 const displayButton = document.getElementById('display-button');
 const resizer = document.getElementById('resizer');
 const groundButton = document.getElementById('ground-button');
-const chartsButton = document.getElementById('charts-button');
 const groundAircraftButton = document.getElementById('ground-aircraft');
 const airportSelector = document.getElementById('airport-dropdown');
-const groundDisplayButton = document.getElementById('groundview-button');
 const infoOverlay = document.getElementById('info-overlay');
-const closeButton = document.getElementById('close-icon');
-const groundContainer = document.getElementById('ground-svg-container');
-const chartsContainer = document.getElementById('charts-container');
 const fullWideButton = document.getElementById('full-wide-button');
 const sideDisplay = document.getElementById('side-display');
 const sidePanelContent = document.getElementById('side-panel-content');
 const sideButton1 = document.getElementById('side-window-1-button');
 const sideButton2 = document.getElementById('side-window-2-button');
+const settingsButton = document.getElementById('settings-button');
+const airspaceBoundsCheck = document.getElementById('bounds-check');
+const fontSizeInput = document.getElementById('font-size-input');
+const fontSizeInputGround = document.getElementById('font-size-input-ground');
 
 //maps
 const airlineMap = new Map(Object.entries(AirlineMapJson));
@@ -47,31 +45,28 @@ const onGroundSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  w
 const PORT = 4000;
 
 let zuluTime = false;
-let airspaceBoundsVisible = true;
-let groundDisplayToggle = false;
-let chartsDisplayToggle = false;
 let isDraggingLabel = { bool: false, label: null };
 let isDraggingGroundLabel = { bool: false, label: null };
 let isDraggingOverlay = false;
 let currentZoom = 1;
 let groundCurrentZoom = 0.04;
 let labelFontSize = 10;
+let groundLabelFontSize = 12;
 let aircraftData = {};
 let groundAircraftHidden = false;
 let defaultLabelOffset = 5;
 let groundViewVisible = false;
 let start = { x: 0, y: 0 };
-let offsetInfoOverlay = { x: 0, y: 0 };
 let curentAircraftId = null;
 let textAlign = 'start';
 let isMeasuring = false;
 let measuringline = null;
-let textStart = null;
-let textEnd = null;
+
 let measuringLineStart = null;
 let textDistance = null;
 let previousChartTransform = null;
 let groundAircraftElements = {}; // Maps aircraft ID to <g> element
+let target;
 
 const aircraftTrails = {};
 const maxTrailLength = 15;
@@ -79,6 +74,9 @@ const maxTrailLength = 15;
 window.addEventListener('load', function () {
     fetchMapLayer(container);
     loadAirportData(airportSelector);
+    document.querySelectorAll('.overlay').forEach(el => {
+        overlaySetup(el);
+    });
 });
 
 // Update time display every second
@@ -90,32 +88,61 @@ function updateTime() {
 }
 setInterval(updateTime, 1000);
 
-infoOverlay.addEventListener('mousedown', e => {
-    if (e.button == 0) {
-        isDraggingOverlay = true;
-        start = { x: e.clientX, y: e.clientY };
-        e.preventDefault();
-    }
-});
+function getHighestZIndex() {
+    const overlays = document.querySelectorAll('.overlay');
+    let highest = 0;
+    overlays.forEach(el => {
+        const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+        if (!isNaN(z) && z > highest) {
+            highest = z;
+        }
+    });
+    return highest;
+}
 
-infoOverlay.addEventListener('mousemove', e => {
-    if (!isDraggingOverlay) return;
+function overlaySetup(overlay){
+    let currentX;
+    let currentY;
+    overlay.style.zIndex = '100';
 
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
+    overlay.addEventListener('mousedown', e => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.button == 0) {
+            isDraggingOverlay = true;
+            target = overlay;
+            start = { x: e.clientX, y: e.clientY };
+            const match = overlay.style.transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+            currentX = match ? parseFloat(match[1]) : 0;
+            currentY = match ? parseFloat(match[2]) : 0;
+            e.preventDefault();
+            overlay.style.zIndex = getHighestZIndex() + 1;
+        }
+    });
 
-    infoOverlay.style.transform = `translate(${offsetInfoOverlay.x + dx}px, ${offsetInfoOverlay.y + dy}px)`;
-});
+    document.addEventListener('mousemove', e => {
+        if (!isDraggingOverlay || target != overlay) return;
 
-document.addEventListener('mouseup', () => {
-    if (isDraggingOverlay) {
-        const style = window.getComputedStyle(infoOverlay).transform;
-        const matrix = new DOMMatrix(style);
-        offsetInfoOverlay.x = matrix.m41;
-        offsetInfoOverlay.y = matrix.m42;
-    }
-    isDraggingOverlay = false;
-});
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+
+        overlay.style.transform = `translate(${currentX + dx}px, ${currentY + dy}px)`;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDraggingOverlay) {
+            const style = window.getComputedStyle(overlay).transform;
+            const matrix = new DOMMatrix(style);
+        }
+        isDraggingOverlay = false;
+    });
+    
+    const closeButton = overlay.querySelector('.close-svg');
+
+    closeButton.addEventListener('click', () => {
+        curentAircraftId = null;
+        closeButton.parentElement.style.display = 'none';
+    });
+}
 
 function displayOverlay(id, info) {
     if (curentAircraftId == id) {
@@ -126,7 +153,6 @@ function displayOverlay(id, info) {
         curentAircraftId = id;
         infoOverlay.style.display = 'block'
     }
-
     updateOverlay(id, info)
 }
 
@@ -241,16 +267,19 @@ function loadAirportData(airportSelector) {
             alert('Error loading groundview: ' + err.message);
         });
 
+    
     const stationCenter = stationMap.get(folder);
     const stationType = 'CTR';
 
+    document.querySelector('#station-info').innerHTML = `${stationCenter}-${stationType}`
+    /*
     document.querySelector('#station-info').innerHTML = `
         ${stationCenter}-${stationType}
         <select id="station-type">
             <option value="CTR">null</option>
             <option value="GND">null</option>
         </select>
-        `;
+        `;*/
 }
 
 function loadGroundChartSVG(airportSelector, cont) {
@@ -335,11 +364,20 @@ timeButton.addEventListener('click', () => {
     updateTime();
 });
 
-airspaceButton.addEventListener('click', () => {
-    airspaceBoundsVisible = !airspaceBoundsVisible;
-    document.getElementById('boundaries-svg').style.display = airspaceBoundsVisible ? 'block' : 'none';
-    airspaceButton.style.background = airspaceBoundsVisible ? '#4d4d4d' : '#3E3E3E';
-    airspaceButton.style.border = airspaceBoundsVisible ? '3px solid #4B5DA3' : 'none';
+airspaceBoundsCheck.addEventListener('change', () => {
+    document.getElementById('boundaries-svg').style.display = airspaceBoundsCheck.checked ? 'block' : 'none';
+});
+
+fontSizeInput.addEventListener('change', () => {
+    labelFontSize = parseFloat(fontSizeInput.value)/10;
+    updateAircraftLayer(aircraftData);
+});
+
+fontSizeInputGround.addEventListener('change', () => {
+    groundLabelFontSize = parseFloat(fontSizeInputGround.value)/10;
+    document.querySelectorAll('#ground-container').forEach(cont => {
+        updateGroundAircraftLayer(aircraftData, cont);
+    });
 });
 
 groundAircraftButton.addEventListener('click', () => {
@@ -349,11 +387,6 @@ groundAircraftButton.addEventListener('click', () => {
     });
     groundAircraftButton.style.background = !groundAircraftHidden ? '#4d4d4d' : '#3E3E3E';
     groundAircraftButton.style.border = !groundAircraftHidden ? '3px solid #4B5DA3' : 'none';
-});
-
-closeButton.addEventListener('click', () => {
-    curentAircraftId = null;
-    infoOverlay.style.display = 'none';
 });
 
 groundButton.addEventListener('click', () => {
@@ -428,6 +461,11 @@ sideButton2.addEventListener('click', () => {
     sideButton2.innerHTML = sideButton2.innerHTML == '▼' ? '▲' : '▼';
 });
 
+settingsButton.addEventListener('click', () => {
+    const overlay = document.getElementById('settings-overlay');
+    overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+});
+
 window.addEventListener('load', function () {
     const sideButtons = document.querySelectorAll('.sidebar-button');
     sideButtons.forEach(button => {
@@ -498,7 +536,6 @@ socket.onmessage = event => {
         aircraftData = enrichedAircraftMap;
         updateAircraftLayer(enrichedAircraftMap);
         document.querySelectorAll('#ground-container').forEach(cont => {
-            console.log(cont.parentElement);
             updateGroundAircraftLayer(enrichedAircraftMap, cont);
         });
     }
@@ -658,7 +695,7 @@ function updateGroundAircraftLayer(data, cont) {
 
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("fill", "white");
-            label.setAttribute('font-size', 12 * groundCurrentZoom);
+            label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * document.getElementById('label-size-slider').value);
             label.classList.add("ground-aircraft-label");
             label.setAttribute('id', "aircraft-label");
             label.setAttribute("x", defaultLabelOffset * groundCurrentZoom); // offset for label
@@ -762,6 +799,11 @@ function updateGroundLabel(group, info, id) {
         }
         text.setAttribute("fill", color);
     }
+
+    label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * document.getElementById('label-size-slider').value);
+    label.setAttribute("x", defaultLabelOffset * groundCurrentZoom); // offset for label
+    label.setAttribute("y", 2 * groundCurrentZoom); // offset for label
+
 
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];
@@ -1235,6 +1277,8 @@ window.addEventListener('resize', () => {
 
 function updateMeasuringTool(x, y) {
     if (measuringline == null) return;
+    let textStart = null;
+    let textEnd = null;
     measuringline.setAttribute("x2", x);
     measuringline.setAttribute("y2", y);
     measuringline.setAttribute("stroke-width", 1 * currentZoom);
@@ -1318,11 +1362,12 @@ function fetchMapLayerGround(container) {
             slider.max = '1.5';
             slider.step = '0.1';
             slider.value = 1;
+            slider.setAttribute('id', 'label-size-slider')
 
             slider.addEventListener('input', () => {
                 const labels = svg.querySelectorAll('.ground-aircraft-label');
                 labels.forEach(label => {
-                    label.setAttribute('font-size', 12 * groundCurrentZoom * slider.value);
+                    label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * slider.value);
                 });
             });
 

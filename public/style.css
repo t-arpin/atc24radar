@@ -6,7 +6,7 @@ html, body, #svg-container, .ground-svg-container, .charts-container {
     -webkit-user-drag: none;
     touch-action: none;
     display: flex;
-    font-family: ui-monospace, "Cascadia Mono", monospace
+    font-family: ui-monospace, "Cascadia Mono", monospace;
 }
 
 #svg-container {
@@ -180,15 +180,6 @@ a {
   background-color: #333333;
 }
 
-#airspace-bounds {
-    background-color: #4d4d4d;
-    border: 3px solid #4B5DA3;
-    padding: 1px;
-    width: 65px;
-    height: 40px;
-    font-size: .7em;
-}
-
 #ground-aircraft {
     background-color: #4d4d4d;
     border: 3px solid #4B5DA3;
@@ -329,11 +320,11 @@ a {
     outline: 5px solid #222222;
     border-radius: 5px;
     padding: 5px;
-    z-index: 9999;
+    z-index: 100;
     color: white;
 }
 
-#close-icon {
+.close-svg {
     width: 15px;
     height: 15px;
     position: absolute;
@@ -450,4 +441,58 @@ a {
     width: 0px;
     cursor: pointer;
     text-align: left;
+    width: 100%;
+}
+
+.settings-icon {
+    width: 20px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+}
+
+.settings-icon > svg {
+    color: white;
+}
+
+.settings-icon:hover {
+    transform: rotate(90deg);
+}
+
+#settings-overlay {
+    display: block;
+    right: 50vw;
+    bottom: 50vh;
+}
+
+hr {
+    width: 100%;
+}
+
+input {
+    background-color: #333; /* Dark background */
+    color: #ffffff; /* White text */
+    border: 1px solid #444444; /* Subtle border */
+    border-radius: 5px; /* Rounded corners */
+    outline: none;
+    font-family: ui-monospace, "Cascadia Mono", monospace;
+}
+
+#font-size-input {
+    width: 44px;
+    padding: 4px;
+    margin-left: 16px;
+}
+
+#font-size-input-ground {
+    margin-top: 5px;
+    width: 45px;
+    padding: 4px;
+    margin-left: 10px;
+}
+
+#bounds-check {
+    margin-left: auto;
 }
