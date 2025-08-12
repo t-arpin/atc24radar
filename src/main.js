@@ -61,6 +61,8 @@ let curentAircraftId = null;
 let textAlign = 'start';
 let isMeasuring = false;
 let measuringline = null;
+let textStart = null;
+let textEnd = null;
 
 let measuringLineStart = null;
 let textDistance = null;
@@ -385,7 +387,7 @@ groundAircraftButton.addEventListener('click', () => {
     document.querySelectorAll('.aircraft-group').forEach(group => {
         group.style.display = groundAircraftHidden && group.getAttribute('isOnGround') == 'true' ? 'none' : 'block';
     });
-    groundAircraftButton.style.background = !groundAircraftHidden ? '#4d4d4d' : '#3E3E3E';
+    groundAircraftButton.style.background = !groundAircraftHidden ? '#3e3e3e' : '#303030';
     groundAircraftButton.style.border = !groundAircraftHidden ? '3px solid #4B5DA3' : 'none';
 });
 
@@ -397,7 +399,7 @@ groundButton.addEventListener('click', () => {
         groundSvg.style.display = groundViewVisible ? 'block' : 'none';
     }
 
-    groundButton.style.background = groundViewVisible ? '#4d4d4d' : '#3E3E3E';
+    groundButton.style.background = groundViewVisible ? '#3e3e3e' : '#303030';
     groundButton.style.border = groundViewVisible ? '3px solid #4B5DA3' : 'none';
 });
 
@@ -464,6 +466,16 @@ sideButton2.addEventListener('click', () => {
 settingsButton.addEventListener('click', () => {
     const overlay = document.getElementById('settings-overlay');
     overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+});
+
+document.getElementById('notepad-icon').addEventListener('click', () => {
+    const overlay = document.getElementById('notepad-overlay');
+    overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+});
+
+document.getElementById('departures-icon').addEventListener('click', () => {
+    const overlay = document.getElementById('departures-overlay');
+    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
 });
 
 window.addEventListener('load', function () {
@@ -538,10 +550,78 @@ socket.onmessage = event => {
         document.querySelectorAll('#ground-container').forEach(cont => {
             updateGroundAircraftLayer(enrichedAircraftMap, cont);
         });
+        updateDepartures(enrichedAircraftMap);
     }
 };
 
 socket.onerror = err => console.error('WebSocket error:', err);
+
+function updateDepartures(data){
+    const tableBody = document.querySelector('#departures-table tbody');
+    tableBody.innerHTML = ''; // Removes all child rows
+    for (const [id, info] of Object.entries(data)) {
+        if (info.flightPlan != null && info.flightPlan.departing == airportSelector.value) addDepartureRow(info);        
+    }
+}
+
+function addDepartureRow(info) {
+    console.log(info);
+    const tableBody = document.querySelector('#departures-table tbody');
+    const fp = info.flightPlan;
+
+    // Define columns info: name and input type (or "label" for readonly)
+    const columns = [
+        { name: 'callsign', type: 'text', value: fp.callsign || '' },
+        { name: 'type', type: 'text', value: acftTypeMap.get(info.aircraft) || '' },
+        { name: 'arrival', type: 'label', value: fp.departing || '' },
+        { name: 'rwy', type: 'text', value: '' },
+        { name: 'sid', type: 'text', value: '' },
+        { name: 'climb', type: 'text', value: fp.flightlevel || '' },
+        { name: 'c', type: 'checkbox', value: false },
+        { name: 'rmk', type: 'text', value: '' },
+    ];
+
+    // Create a new table row
+    const newRow = document.createElement('tr');
+
+    columns.forEach(col => {
+        const cell = document.createElement('td');
+
+        if (col.type === 'label') {
+            // Disabled input for label
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = col.name;
+            input.value = col.value;
+            input.disabled = true;
+            input.style.width = '100%';
+            cell.appendChild(input);
+
+        } else if (col.type === 'checkbox') {
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = col.name;
+            input.checked = col.value === true;  // set checked state
+            input.style.display = 'block';
+            input.style.margin = '0 auto';
+            cell.style.textAlign = 'center';
+            cell.appendChild(input);
+
+        } else {
+            // Default text input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = col.name;
+            input.value = col.value || '';
+            input.style.width = '100%';
+            cell.appendChild(input);
+        }
+
+        newRow.appendChild(cell);
+    });
+
+    tableBody.appendChild(newRow);
+}
 
 function addAirportChart(container) {
     const chartUrl = `https://ptfs.app/charts/dark/${airportSelector.value}%20Ground%20Chart.png`;
@@ -1277,8 +1357,6 @@ window.addEventListener('resize', () => {
 
 function updateMeasuringTool(x, y) {
     if (measuringline == null) return;
-    let textStart = null;
-    let textEnd = null;
     measuringline.setAttribute("x2", x);
     measuringline.setAttribute("y2", y);
     measuringline.setAttribute("stroke-width", 1 * currentZoom);

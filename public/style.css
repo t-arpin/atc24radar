@@ -181,7 +181,7 @@ a {
 }
 
 #ground-aircraft {
-    background-color: #4d4d4d;
+    background-color: #3e3e3e;
     border: 3px solid #4B5DA3;
     width: 65px;
     padding: 1px;
@@ -278,7 +278,7 @@ a {
 }
 
 #airport-dropdown {
-    background-color: #3e3e3e;
+    background-color: #303030;
     color: #fff;
     font-family: ui-monospace, "Cascadia Mono", monospace;
     border: none;
@@ -298,7 +298,7 @@ a {
 }
 
 #ground-button {
-    background-color: #3e3e3e;
+    background-color: #303030;
     height: 40px;
     width: 65px;
 }
@@ -312,7 +312,7 @@ a {
     position: fixed;
     display: none;
     bottom: 20px;
-    right: 20px;
+    right: 50px;
     width: 200px;
     height: auto;
     background: #222222;
@@ -462,7 +462,7 @@ a {
 }
 
 #settings-overlay {
-    display: block;
+    display: none;
     right: 50vw;
     bottom: 50vh;
 }
@@ -495,4 +495,100 @@ input {
 
 #bounds-check {
     margin-left: auto;
+}
+
+#tools {
+    display: flex; 
+    gap: 10px;
+}
+
+#notepad-overlay {
+    right: 5vw;
+    bottom: 50vh;
+    display: none;
+}
+
+#notepad-input {
+    background-color: transparent;
+    color: white; 
+    border: none;
+    padding: none;
+    outline: none;
+    height: 200px;
+    resize: none;
+    padding-top: 5px;
+    width: 196px;
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
+}
+
+#notepad-input::-webkit-scrollbar {
+    width: 6px; /* Thin scrollbar */
+}
+
+#notepad-input::-webkit-scrollbar-track {
+    background: transparent; /* No track background */
+}
+
+#notepad-input::-webkit-scrollbar-thumb {
+    background-color: #555; /* Dark thumb */
+    border-radius: 3px;
+}
+
+#notepad-input::-webkit-scrollbar-thumb:hover {
+    background-color: #777; /* Slightly lighter on hover */
+}
+
+.tool-icon {
+    width: 20px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#notepad-overlay > svg {
+    top: 7px;
+    right: 2px;
+}
+
+#departures-overlay {
+    right: 20vw;
+    bottom: 50vh;
+    width: 450px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#departures-table {
+    background-color: transparent;
+    color: white;
+    border: 1px solid #444;
+    font-size: .7em;
+    border-collapse: collapse;
+    table-layout: auto;
+    width: 100%;
+}
+
+#departures-table th, 
+#departures-table td {
+    border: 1px solid #444;
+    padding: 4px;
+    vertical-align: middle;
+}
+
+#departures-table input[type="text"] {
+    background-color: transparent;
+    color: white;
+    border: none;
+    outline: none;
+    width: 100%; 
+    box-sizing: border-box; 
+    font-size: inherit; 
+}
+
+#departures-table input[type="checkbox"] {
+    transform: scale(1.2);
+    margin: 0 auto;
+    display: block;
 }
