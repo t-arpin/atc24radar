@@ -607,3 +607,45 @@ input {
     margin: 0 auto;
     display: block;
 }
+
+#arrivals-overlay {
+    right: 20vw;
+    bottom: 50vh;
+    width: 300px;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#arrivals-table {
+    background-color: transparent;
+    color: white;
+    border: 1px solid #444;
+    font-size: .7em;
+    border-collapse: collapse;
+    table-layout: auto;
+    width: 100%;
+}
+
+#arrivals-table th, 
+#arrivals-table td {
+    border: 1px solid #444;
+    padding: 4px;
+    vertical-align: middle;
+}
+
+#arrivals-table input[type="text"] {
+    background-color: transparent;
+    color: white;
+    border: none;
+    outline: none;
+    width: 100%; 
+    box-sizing: border-box; 
+    font-size: inherit; 
+}
+
+#arrivals-table input[type="checkbox"] {
+    transform: scale(1.2);
+    margin: 0 auto;
+    display: block;
+}

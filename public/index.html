@@ -53,7 +53,7 @@
                     <path fill="currentColor" d="M624 448H16c-8.84 0-16 7.16-16 16v32c0 8.84 7.16 16 16 16h608c8.84 0 16-7.16 16-16v-32c0-8.84-7.16-16-16-16M80.55 341.27c6.28 6.84 15.1 10.72 24.33 10.71l130.54-.18a65.62 65.62 0 0 0 29.64-7.12l290.96-147.65c26.74-13.57 50.71-32.94 67.02-58.31c18.31-28.48 20.3-49.09 13.07-63.65c-7.21-14.57-24.74-25.27-58.25-27.45c-29.85-1.94-59.54 5.92-86.28 19.48l-98.51 49.99l-218.7-82.06a17.799 17.799 0 0 0-18-1.11L90.62 67.29c-10.67 5.41-13.25 19.65-5.17 28.53l156.22 98.1l-103.21 52.38l-72.35-36.47a17.804 17.804 0 0 0-16.07.02L9.91 230.22c-10.44 5.3-13.19 19.12-5.57 28.08z"/>
                 </svg>
             </div>
-            <div id="arrival-icon" class="menu-button tool-icon">
+            <div id="arrivals-icon" class="menu-button tool-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 512">
                     <path fill="currentColor" d="M624 448H16c-8.84 0-16 7.16-16 16v32c0 8.84 7.16 16 16 16h608c8.84 0 16-7.16 16-16v-32c0-8.84-7.16-16-16-16M44.81 205.66l88.74 80a62.607 62.607 0 0 0 25.47 13.93l287.6 78.35c26.48 7.21 54.56 8.72 81 1.36c29.67-8.27 43.44-21.21 47.25-35.71c3.83-14.5-1.73-32.71-23.37-54.96c-19.28-19.82-44.35-32.79-70.83-40l-97.51-26.56L282.8 30.22c-1.51-5.81-5.95-10.35-11.66-11.91L206.05.58c-10.56-2.88-20.9 5.32-20.71 16.44l47.92 164.21l-102.2-27.84l-27.59-67.88c-1.93-4.89-6.01-8.57-11.02-9.93L52.72 64.75c-10.34-2.82-20.53 5-20.72 15.88l.23 101.78c.19 8.91 6.03 17.34 12.58 23.25"/>
                 </svg>
@@ -161,6 +161,34 @@
                     <th>SID</th>
                     <th>CLMB</th>
                     <th>C</th>
+                    <th>RMK</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+     <div id="arrivals-overlay" class="overlay">
+        <svg class="close-svg" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="18" fill="#fd5754" />
+            <line x1="13" y1="13" x2="27" y2="27" stroke="#80060d" stroke-width="3" stroke-linecap="round" />
+            <line x1="27" y1="13" x2="13" y2="27" stroke="#80060d" stroke-width="3" stroke-linecap="round" />
+        </svg>
+        Arrivals
+        <table id="arrivals-table" border="1" style="border-collapse: collapse; width: 100%; text-align: left;">
+            <colgroup>
+                <col style="width: 24%;">
+                <col style="width: 3%;">
+                <col style="width: 3%;">
+                <col style="width: 1%;">
+                <col style="width: 20%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>CALLSIGN</th>
+                    <th>TYPE</th>
+                    <th>RWY</th>
+                    <th>STAND</th>
                     <th>RMK</th>
                 </tr>
             </thead>

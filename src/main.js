@@ -494,11 +494,15 @@ document.getElementById('departures-icon').addEventListener('click', () => {
     overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
 });
 
+document.getElementById('arrivals-icon').addEventListener('click', () => {
+    const overlay = document.getElementById('arrivals-overlay');
+    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+});
+
 window.addEventListener('load', function () {
     const sideButtons = document.querySelectorAll('.sidebar-button');
     sideButtons.forEach(button => {
         const id = button.getAttribute('id');
-        console.log(id);
         button.addEventListener('click', () => {
             const container = button.parentElement;
             const buttons = container.querySelectorAll('.sidebar-button');
@@ -569,6 +573,7 @@ socket.onmessage = event => {
         preserveFocusWhileUpdating(() => {
             updateDepartures(enrichedAircraftMap);
         });
+        updateArrivals(enrichedAircraftMap);
     }
 };
 
@@ -583,7 +588,6 @@ function updateDepartures(data){
     for (const [id, info] of Object.entries(data)) {
         const fp = info.flightPlan;
         if (!fp || fp.departing !== airportSelector.value) continue;
-        console.log(info.flightStatus);
         
         newIds.add(id);
 
@@ -595,19 +599,17 @@ function updateDepartures(data){
         const isCruising = info.flightStatus === "cruising" || "climbing";
 
         if (!isNaN(currentAltitude) && !isNaN(filedCruisingAltitude) && isCruising && currentAltitude === filedCruisingAltitude) {
-            if (departuresElements[id]) {
-                departuresElements[id].remove();
-                delete departuresElements[id];
-                delete departuresTimestamps[id];
+            const group = arrivalsElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
             }
-            continue;
+            delete arrivalsElements[id];
+            delete arrivalsTimestamps[id];
         }
-        console.log(info.flightPlan.flightStatus, id);
         if (info.flightStatus === 'landed' || info.flightStatus === 'cruising' || info.flightStatus === 'descending') {
             const group = departuresElements[id];
             if (group && group.parentNode) {
                 group.parentNode.removeChild(group);
-                console.log(group);
             }
             delete departuresElements[id];
             delete departuresTimestamps[id];
@@ -749,6 +751,103 @@ function reorderDepartureRows() {
         const row = departuresElements[id];
         if (row) tableBody.appendChild(row); // reordering
     }
+}
+
+let arrivalsElements = {};
+let arrivalsTimestamps = {};
+function updateArrivals(data){
+    const newIds = new Set();
+
+    //add new rows
+    for (const [id, info] of Object.entries(data)) {
+        const fp = info.flightPlan;
+        if (!fp || fp.arriving !== airportSelector.value) continue;
+        
+        newIds.add(id);
+
+        const currentAltitude = parseInt(info.altitude);
+        const isCruising = info.flightStatus === "cruising" || "climbing";
+
+        if (info.flightStatus === 'landed') {
+            const group = arrivalsElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
+            }
+            delete arrivalsElements[id];
+            delete arrivalsTimestamps[id];
+            
+            continue;
+        }
+        
+        const currentTimestamp = fp.timestamp;
+
+        if (!arrivalsElements[id] || arrivalsTimestamps[id] !== currentTimestamp) {
+
+            if (arrivalsElements[id]) arrivalsElements[id].remove();
+
+            addArrivalsRow(info, id);
+            arrivalsTimestamps[id] = currentTimestamp;
+        }
+    }
+
+    //delete rows
+    for (const id in arrivalsElements) {
+        if (!newIds.has(id)) {
+            const group = arrivalsElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
+            }
+            delete arrivalsElements[id];
+            delete arrivalsTimestamps[id];
+        }
+    }
+
+    //reorderDepartureRows();
+}
+
+function addArrivalsRow(info, id) {
+    const tableBody = document.querySelector('#arrivals-table tbody');
+    const fp = info.flightPlan;
+
+    // Define columns info: name and input type (or "label" for readonly)
+    const columns = [
+        { name: 'callsign', type: 'text', value: fp.callsign || '' },
+        { name: 'type', type: 'text', value: acftTypeMap.get(info.aircraftType) || '' },
+        { name: 'rwy', type: 'text', value: '' },
+        { name: 'stand', type: 'text', value: '' },
+        { name: 'rmk', type: 'text', value: '' },
+    ];
+
+    // Create a new table row
+    const newRow = document.createElement('tr');
+
+    columns.forEach(col => {
+        const cell = document.createElement('td');
+
+        if (col.type === 'label') {
+            // Disabled input for label
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = col.name;
+            input.value = col.value;
+            input.disabled = true;
+            input.style.width = '100%';
+            cell.appendChild(input);
+        } else {
+            // Default text input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = col.name;
+            input.value = col.value || '';
+            input.style.width = '100%';
+            cell.appendChild(input);
+        }
+
+        newRow.appendChild(cell);
+    });
+
+    tableBody.appendChild(newRow);
+    arrivalsElements[id] = newRow;
 }
 
 function preserveFocusWhileUpdating(updateFunction) {
