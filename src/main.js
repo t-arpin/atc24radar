@@ -163,20 +163,32 @@ function updateOverlay(id, info) {
     const carrier = callsignParts[0];
     const number = callsignParts[1];
 
-    const icon = info.isOnGround ? onGroundSVG : inFlightSVG;
+    const icon = info.isOnGround || info.isTaxiing ? onGroundSVG : inFlightSVG;
     if (info.flightPlan != null) {
+        const fp = info.flightPlan;
         infoOverlay.querySelector('#route-container').innerHTML = `
             <div id="departure" class="route">
-                ${info.flightPlan.departing}
-                <span class="airport-name">${airportNamesMap.get(info.flightPlan.departing)}</span>
+                ${fp.departing}
+                <span class="airport-name">${airportNamesMap.get(fp.departing)}</span>
             </div>
             <div id="arival" class="route">
-                ${info.flightPlan.arriving}
-                <span class="airport-name">${airportNamesMap.get(info.flightPlan.arriving)}</span>
+                ${fp.arriving}
+                <span class="airport-name">${airportNamesMap.get(fp.arriving)}</span>
             </div>
-            <div id="plane-icon-container"></div>`
+            <div id="plane-icon-container"></div>`;
+
+        infoOverlay.querySelector('#flight-plan').innerHTML = `
+            <div id="details-spacer"></div>
+            <div id="fp-info">
+                <span>Callsign⠀⠀⠀⠀⠀: ${fp.callsign}</span>
+                <span>Filed Cruise : FL${fp.flightlevel}</span>
+                <span>Flight Rules : ${fp.flightrules}</span>
+                <span>Status⠀⠀⠀⠀⠀⠀⠀: ${info.flightStatus}</span>
+            </div>
+        `;
     } else {
         infoOverlay.querySelector('#route-container').innerHTML = `<div id="departure" class="route">N/A<span class="airport-name">Not available</span></div><div id="arival" class="route">N/A<span class="airport-name">Not available</span></div><div id="plane-icon-container"></div>`;
+        infoOverlay.querySelector('#flight-plan').innerHTML = `<div id="details-spacer"></div><div id="fp-info"><span>Callsign⠀⠀⠀⠀⠀: No FLP</span><span>Filed Cruise : No FLP</span><span>Flight Rules : No FLP</span><span>Status⠀⠀⠀⠀⠀⠀⠀: Cruise</span></div>`;
     }
 
     infoOverlay.querySelector('#callsign-bar').innerHTML = callsignMap.get(carrier) + number;
@@ -206,6 +218,10 @@ airportSelector.addEventListener('change', () => {
         addAirportChart(cont.parentElement);
         previousChartTransform = null;
     });
+    document.querySelector('#departures-table tbody').innerHTML = '';
+    departuresElements = {};
+    departuresTimestamps = {};
+    updateDepartures(aircraftData);
 });
 
 function loadAirportData(airportSelector) {
@@ -550,34 +566,95 @@ socket.onmessage = event => {
         document.querySelectorAll('#ground-container').forEach(cont => {
             updateGroundAircraftLayer(enrichedAircraftMap, cont);
         });
-        updateDepartures(enrichedAircraftMap);
+        preserveFocusWhileUpdating(() => {
+            updateDepartures(enrichedAircraftMap);
+        });
     }
 };
 
 socket.onerror = err => console.error('WebSocket error:', err);
 
+let departuresElements = {};
+let departuresTimestamps = {};
 function updateDepartures(data){
-    const tableBody = document.querySelector('#departures-table tbody');
-    tableBody.innerHTML = ''; // Removes all child rows
+    const newIds = new Set();
+
+    //add new rows
     for (const [id, info] of Object.entries(data)) {
-        if (info.flightPlan != null && info.flightPlan.departing == airportSelector.value) addDepartureRow(info);        
+        const fp = info.flightPlan;
+        if (!fp || fp.departing !== airportSelector.value) continue;
+        console.log(info.flightStatus);
+        
+        newIds.add(id);
+
+        const currentAltitude = parseInt(info.altitude);
+        let inputCruising = document.querySelector(`#cruise-input-${id}`);
+        let filedCruisingAltitude = inputCruising
+            ? parseInt(inputCruising.value)
+            : parseInt(fp.cruisingAltitude);
+        const isCruising = info.flightStatus === "cruising" || "climbing";
+
+        if (!isNaN(currentAltitude) && !isNaN(filedCruisingAltitude) && isCruising && currentAltitude === filedCruisingAltitude) {
+            if (departuresElements[id]) {
+                departuresElements[id].remove();
+                delete departuresElements[id];
+                delete departuresTimestamps[id];
+            }
+            continue;
+        }
+        console.log(info.flightPlan.flightStatus, id);
+        if (info.flightStatus === 'landed' || info.flightStatus === 'cruising' || info.flightStatus === 'descending') {
+            const group = departuresElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
+                console.log(group);
+            }
+            delete departuresElements[id];
+            delete departuresTimestamps[id];
+            
+            continue;
+        }
+        
+        const currentTimestamp = fp.timestamp;
+
+        if (!departuresElements[id] || departuresTimestamps[id] !== currentTimestamp) {
+
+            if (departuresElements[id]) departuresElements[id].remove();
+
+            addDepartureRow(info, id);
+            departuresTimestamps[id] = currentTimestamp;
+        }
     }
+
+    //delete rows
+    for (const id in departuresElements) {
+        if (!newIds.has(id)) {
+            const group = departuresElements[id];
+            if (group && group.parentNode) {
+                group.parentNode.removeChild(group);
+            }
+            delete departuresElements[id];
+            delete departuresTimestamps[id];
+        }
+    }
+
+    reorderDepartureRows();
 }
 
-function addDepartureRow(info) {
-    console.log(info);
+function addDepartureRow(info, id) {
     const tableBody = document.querySelector('#departures-table tbody');
     const fp = info.flightPlan;
 
     // Define columns info: name and input type (or "label" for readonly)
     const columns = [
         { name: 'callsign', type: 'text', value: fp.callsign || '' },
-        { name: 'type', type: 'text', value: acftTypeMap.get(info.aircraft) || '' },
-        { name: 'arrival', type: 'label', value: fp.departing || '' },
+        { name: 'type', type: 'text', value: acftTypeMap.get(info.aircraftType) || '' },
+        { name: 'arrival', type: 'label', value: fp.arriving || '' },
+        { name: 'flightRules', type: 'label', value: fp.flightrules || '' },
         { name: 'rwy', type: 'text', value: '' },
         { name: 'sid', type: 'text', value: '' },
         { name: 'climb', type: 'text', value: fp.flightlevel || '' },
-        { name: 'c', type: 'checkbox', value: false },
+        { name: 'c', type: 'checkbox',},
         { name: 'rmk', type: 'text', value: '' },
     ];
 
@@ -607,6 +684,24 @@ function addDepartureRow(info) {
             cell.style.textAlign = 'center';
             cell.appendChild(input);
 
+             input.addEventListener('change', () => {
+                if (input.checked) {
+                    input.dataset.checkedAt = Date.now();
+                } else {
+                    delete input.dataset.checkedAt;
+                }
+                reorderDepartureRows();
+                updateDepartures();
+            });
+
+        } else if (col.name === 'climb') {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = col.name;
+            input.value = col.value || '';
+            input.style.width = '100%';
+            input.setAttribute('id', `cruise-input-${id}`)
+            cell.appendChild(input);
         } else {
             // Default text input
             const input = document.createElement('input');
@@ -621,6 +716,73 @@ function addDepartureRow(info) {
     });
 
     tableBody.appendChild(newRow);
+    departuresElements[id] = newRow;
+}
+
+function reorderDepartureRows() {
+    const tableBody = document.querySelector('#departures-table tbody');
+
+    const unchecked = [];
+    const checked = [];
+
+    for (const id in departuresElements) {
+        const row = departuresElements[id];
+        const cb = row.querySelector('input[name="c"]');
+        const isChecked = cb?.checked;
+
+        if (isChecked) {
+            checked.push({ id, checkedAt: parseInt(cb.dataset.checkedAt || '0') });
+        } else {
+            unchecked.push({ id, timestamp: departuresTimestamps[id] });
+        }
+    }
+
+    // Sort unchecked by flightplan timestamp (newest first)
+    unchecked.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Sort checked by checkedAt (newest first — so they appear at top of checked group)
+    checked.sort((a, b) => a.checkedAt - b.checkedAt);
+
+    const sortedIds = [...checked.map(e => e.id), ...unchecked.map(e => e.id)];
+
+    for (const id of sortedIds) {
+        const row = departuresElements[id];
+        if (row) tableBody.appendChild(row); // reordering
+    }
+}
+
+function preserveFocusWhileUpdating(updateFunction) {
+    const activeEl = document.activeElement;
+    if (!activeEl || !activeEl.name) {
+        // No focused input, just update normally
+        updateFunction();
+        return;
+    }
+
+    const inputName = activeEl.name;
+    const inputValue = activeEl.value;
+    const selectionStart = activeEl.selectionStart;
+    const selectionEnd = activeEl.selectionEnd;
+
+    updateFunction();
+
+    const tableBody = document.querySelector('#departures-table tbody');
+    const inputs = tableBody.querySelectorAll(`input[name="${inputName}"]`);
+
+    let inputToFocus = null;
+    for (const input of inputs) {
+        if (input.value === inputValue) {
+            inputToFocus = input;
+            break;
+        }
+    }
+
+    if (inputToFocus) {
+        inputToFocus.focus();
+        if (selectionStart !== null && selectionEnd !== null) {
+            inputToFocus.setSelectionRange(selectionStart, selectionEnd);
+        }
+    }
 }
 
 function addAirportChart(container) {
@@ -816,7 +978,7 @@ function updateGroundAircraftLayer(data, cont) {
             });
 
             label.addEventListener("dblclick", function () {
-                displayOverlay(id, info);
+                displayOverlay(id, aircraftData[id]);
             });
 
             group.appendChild(icon);
@@ -827,7 +989,7 @@ function updateGroundAircraftLayer(data, cont) {
             groundAircraftElements[id] = group;
 
             svg.addEventListener('wheel', e => {
-                if (isOnGround) {
+                if (aircraftData[id].isOnGround || aircraftData[id].isTaxiing) {
                     updateGroundLabel(group, aircraftData[id], id)
                     updateGroundConnector(group);
                 }
@@ -835,7 +997,7 @@ function updateGroundAircraftLayer(data, cont) {
 
         }
 
-        if (isOnGround || altitude < 150) {
+        if (isOnGround || altitude < 150 || info.isTaxiing) {
             //update position
             group.setAttribute('transform', `translate(${x / 100}, ${y / 100})`);
 
@@ -845,7 +1007,7 @@ function updateGroundAircraftLayer(data, cont) {
             //update icon
             rotatePlaneIcon(group, heading);
         }
-        group.style.display = isOnGround || altitude < 150 ? 'block' : 'none';
+        group.style.display = isOnGround || altitude < 150 || info.isTaxiing ? 'block' : 'none';
 
     }
 
@@ -881,8 +1043,6 @@ function updateGroundLabel(group, info, id) {
     }
 
     label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * document.getElementById('label-size-slider').value);
-    label.setAttribute("x", defaultLabelOffset * groundCurrentZoom); // offset for label
-    label.setAttribute("y", 2 * groundCurrentZoom); // offset for label
 
 
     const callsignParts = id.split("-");
@@ -1068,7 +1228,7 @@ function updateAircraftLayer(data) {
             });
 
             label.addEventListener("dblclick", function () {
-                displayOverlay(id, info);
+                displayOverlay(id, aircraftData[id]);
             });
 
             group.appendChild(icon);
@@ -1091,7 +1251,7 @@ function updateAircraftLayer(data) {
         group.setAttribute('transform', `translate(${x / 100}, ${y / 100})`);
 
         //handle trails only if aircraft is not on the ground
-        if (!isOnGround) {
+        if (!isOnGround || !info.isTaxiing) {
             if (!aircraftTrails[id]) {
                 aircraftTrails[id] = [];
             }
@@ -1113,9 +1273,9 @@ function updateAircraftLayer(data) {
         }
 
         //hide/show ground aircraft
-        group.style.display = groundAircraftHidden && isOnGround ? 'none' : 'block';
-
-        group.setAttribute('isOnGround', isOnGround);
+        group.style.display = groundAircraftHidden && (isOnGround || info.isTaxiing) ? 'none' : 'block';
+        const isGroundOn = isOnGround || info.isTaxiing ? true : false
+        group.setAttribute('isOnGround', isGroundOn);
 
         //label stuff
         updateLabel(group, info, id);
@@ -1321,12 +1481,15 @@ function updateLabel(group, info, id) {
         if (info.flightPlan.arriving == airportSelector.value) {
             color = '#48b8fb';
         }
+        if (info.flightPlan.flightrules == 'VFR' && (info.flightPlan.departing == airportSelector.value || info.flightPlan.arriving == airportSelector.value)){
+            color = '#48fb99ff';
+        }
         text.setAttribute("fill", color);
     }
 
     label.setAttribute('font-size', labelFontSize * currentZoom);
-    label.setAttribute("x", defaultLabelOffset * currentZoom); // offset for label
-    label.setAttribute("y", 2 * currentZoom); // offset for label
+    label.setAttribute("x", label.getAttribute('x') * currentZoom); // offset for label
+    label.setAttribute("y", label.getAttribute('y') * currentZoom); // offset for label
 
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];

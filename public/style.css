@@ -308,12 +308,17 @@ a {
     height: 40px;
 }
 
-.overlay {
-    position: fixed;
-    display: none;
+#info-overlay {
     bottom: 20px;
     right: 50px;
     width: 200px;
+    display: none;
+    height: auto;
+}
+
+.overlay {
+    position: fixed;
+    display: none;
     height: auto;
     background: #222222;
     border: 3px solid #333333;
@@ -358,18 +363,27 @@ a {
     margin-bottom: 4px;
 }
 
-#aircraft-image {
-    background-color: rgb(5, 5, 5);
-    height: 112.50px;
+#flight-plan {
+    height: auto;
+    margin-top: 4px;
+    font-size: .7em;
     display: flex;
-    align-items: center;
-    justify-content: center;
     margin-bottom: 4px;
+}
+
+#fp-info {
+    height: auto;
+    margin-block: 4px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 2px;
 }
 
 #route-container {
     height: 60px;
     display: flex;
+    margin-block: 8px;
 }
 
 .route {
@@ -396,14 +410,13 @@ a {
 
 #detailed-info-container {
     height: auto;
-    margin-top: 4px;
     font-size: .7em;
     display: flex;
 }
 
 #detailed-info {
     height: auto;
-    margin-top: 4px;
+    margin-block: 4px;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -413,7 +426,7 @@ a {
     width: 30px;
     height: 30px;
     left: 90px;
-    top: 175px;
+    top: 62px;
     position: absolute;
 }
 
@@ -422,7 +435,7 @@ a {
     background-color: rgb(22, 22, 22);
     border-right: 2px solid rgb(22, 22, 22);
     margin-right: 5px;
-    height: 100px;
+    height: auto;
     border-radius: 5px;
 }
 
@@ -465,6 +478,7 @@ a {
     display: none;
     right: 50vw;
     bottom: 50vh;
+    width: 200px;
 }
 
 hr {
@@ -506,6 +520,7 @@ input {
     right: 5vw;
     bottom: 50vh;
     display: none;
+    width: 200px;
 }
 
 #notepad-input {
@@ -555,7 +570,7 @@ input {
     right: 20vw;
     bottom: 50vh;
     width: 450px;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 5px;
 }

@@ -7,6 +7,8 @@ const PORT = 4000;
 const API_URL = 'https://24data.ptfs.app/acft-data';
 const POLL_INTERVAL_MS = 3000;
 const FLIGHTPLAN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const MISSING_AC_TTL_MS = 120 * 1000; // 30 seconds
+const lastSeenMap = new Map(); // key: playerName, value: last seen timestamp
 
 const app = express();
 const server = http.createServer(app);
@@ -85,12 +87,21 @@ async function fetchAircraftData() {
         const rawData = await res.json();
 
         const enrichedData = {};
+        const now = Date.now();
+
+        const currentPlayers = new Set();
 
         for (const [callsign, ac] of Object.entries(rawData)) {
             const playerName = ac.playerName;
-            const flightPlan = playerName ? flightPlanMap.get(playerName) ?? null : null;
+            if (playerName) {
+                currentPlayers.add(playerName);
+                lastSeenMap.set(playerName, now); // update last seen time
+            }
 
-            isOnGround = ac.altitude < altitudeThreshold && ac.groundSpeed < groundSpeedThreshold ? true : false;
+            const flightPlan = playerName ? flightPlanMap.get(playerName) ?? null : null;
+            const flightStatus = updateFlightStatus(callsign, ac, flightPlan);
+
+            isOnGround = ac.altitude < altitudeThreshold && ac.groundSpeed < groundSpeedThreshold;
 
             enrichedData[callsign] = {
                 heading: ac.heading,
@@ -103,8 +114,18 @@ async function fetchAircraftData() {
                 isOnGround: isOnGround,
                 isTaxiing: ac.isOnGround,
                 groundSpeed: ac.groundSpeed,
-                flightPlan // can be null
+                flightPlan,
+                flightStatus
             };
+        }
+
+        // Remove flight plans for missing aircraft (> 60 sec)
+        for (const [playerName, lastSeen] of lastSeenMap.entries()) {
+            if (!currentPlayers.has(playerName) && now - lastSeen > MISSING_AC_TTL_MS) {
+                flightPlanMap.delete(playerName);
+                lastSeenMap.delete(playerName);
+                console.log(`Removed flight plan for ${playerName} (missing > 60s)`);
+            }
         }
 
         const packet = JSON.stringify({
@@ -121,6 +142,86 @@ async function fetchAircraftData() {
     } catch (err) {
         console.error('Error fetching aircraft data:', err.message);
     }
+}
+
+const aircraftStates = {}; // keyed by callsign
+
+function stationaryFor(callsign, ms) {
+    const s = aircraftStates[callsign];
+    return s && Date.now() - s.lastPositionTime >= ms;
+}
+
+function updateFlightStatus(callsign, ac, flightPlan) {
+    if (!flightPlan) return "No FLP";
+    if (!aircraftStates[callsign]) {
+        aircraftStates[callsign] = {
+            lastState: "parked",
+            lastPositionTime: Date.now(),
+            cruiseAltitude: flightPlan?.flightlevel ? flightPlan.flightlevel * 100 : null,
+            lastAltitude: ac.altitude,
+            lastOnGround: ac.isOnGround,
+            lastFlightPlanCallsign: flightPlan?.callsign || null
+        };
+    }
+
+    const s = aircraftStates[callsign];
+    let state = s.lastState;
+
+    const cruiseAlt = s.cruiseAltitude || (flightPlan?.flightlevel ? flightPlan.flightlevel * 100 : null);
+
+    // Detect new flight plan (reset landed lock)
+    const newPlan = flightPlan?.callsign && flightPlan.callsign !== s.lastFlightPlanCallsign;
+    if (newPlan) {
+        s.lastFlightPlanCallsign = flightPlan.callsign;
+        if (state === "landed") {
+            state = "parked"; // start parked
+        }
+    }
+
+    // Update stationary timer
+    if (ac.groundSpeed < 1 && ac.isOnGround) {
+        // stationary
+    } else {
+        s.lastPositionTime = Date.now();
+    }
+
+    // Handle sticky landed
+    if (state === "landed") {
+        if (stationaryFor(callsign, 5 * 60 * 1000)) {
+            state = "parked";
+        }
+        // If still landed and no new plan, don't change
+        s.lastAltitude = ac.altitude;
+        s.lastOnGround = ac.isOnGround;
+        s.lastState = state;
+        return state;
+    }
+
+    // State logic
+    if (ac.isOnGround) {
+        if (!s.lastOnGround && ac.altitude < 50) {
+            state = "landed";
+        } else if (ac.groundSpeed > 1) {
+            state = "taxiing";
+        } else if (stationaryFor(callsign, 5 * 60 * 1000)) {
+            state = "parked";
+        }
+    } else {
+        if (ac.altitude > s.lastAltitude + 50 && cruiseAlt && ac.altitude < cruiseAlt - 500) {
+            state = "climbing";
+        } else if (cruiseAlt && Math.abs(ac.altitude - cruiseAlt) <= 500) {
+            state = "cruising";
+        } else if (ac.altitude < s.lastAltitude - 50 && cruiseAlt && ac.altitude < cruiseAlt - 500) {
+            state = "descending";
+        }
+    }
+
+    // Save changes
+    s.lastState = state;
+    s.lastAltitude = ac.altitude;
+    s.lastOnGround = ac.isOnGround;
+
+    return state;
 }
 
 setInterval(fetchAircraftData, POLL_INTERVAL_MS);
