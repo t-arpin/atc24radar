@@ -13,13 +13,15 @@ Built for air traffic controllers who want a professional, responsive interface 
 ## 📸 Screenshots
 
 **Main Radar View**  
-*(coming soon)*  
+<img width="1919" height="1077" alt="Screenshot 2025-08-14 163137" src="https://github.com/user-attachments/assets/7e49754a-b3fd-47ac-9064-e958250f1dcd" />
 
-**Split-Screen Mode (Center + Ground)**  
-*(coming soon)*  
+
+**Split-Screen Mode (Center + Ground + Charts)**  
+<img width="1919" height="1079" alt="poofHBDmDyfS" src="https://github.com/user-attachments/assets/2594b111-71ff-4a6e-95c5-e9f4948c0db2" />
 
 **Aircraft Details Popup**  
-*(coming soon)*  
+<img width="672" height="362" alt="Screenshot 2025-08-14 162956" src="https://github.com/user-attachments/assets/c6468c70-cc1e-4b9b-bdc4-b192b83d3724" />
+
 
 ---
 
@@ -30,7 +32,7 @@ Built for air traffic controllers who want a professional, responsive interface 
   Track live aircraft with dynamic labels that are **movable** and automatically change color based on flight plan status.  
 - **Split-Screen Mode**  
   Monitor **center and ground radar simultaneously** with an innovative side‑by‑side layout.  
-  *(GIF demo coming soon)*  
+![](https://github.com/t-arpin/atc24radar/demo.gif)
 - **Ground Radar View**  
   A dedicated ground viewport for detailed ground monitoring, perfect for managing busy airports.  
 - **Official PTFS Ground Charts**  
