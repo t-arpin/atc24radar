@@ -32,7 +32,7 @@ Built for air traffic controllers who want a professional, responsive interface 
   Track live aircraft with dynamic labels that are **movable** and automatically change color based on flight plan status.  
 - **Split-Screen Mode**  
   Monitor **center and ground radar simultaneously** with an innovative side‑by‑side layout.  
-![](https://github.com/t-arpin/atc24radar/demo.gif)
+![](https://github.com/t-arpin/atc24radar/blob/main/demo.gif?raw=true)
 - **Ground Radar View**  
   A dedicated ground viewport for detailed ground monitoring, perfect for managing busy airports.  
 - **Official PTFS Ground Charts**  
