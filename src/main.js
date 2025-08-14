@@ -44,7 +44,7 @@ const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  w
 const onGroundSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane-inflight"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 11.085h5a2 2 0 1 1 0 4h-15l-3 -6h3l2 2h3l-2 -7h3l4 7z" /><path d="M3 21h18" /></svg>`;
 
 //websocket localhost port
-const PORT = 8080;
+const PORT = 4000;
 
 let zuluTime = false;
 let isDraggingLabel = { bool: false, label: null };
@@ -81,6 +81,7 @@ window.addEventListener('load', function () {
     document.querySelectorAll('.overlay').forEach(el => {
         overlaySetup(el);
     });
+    loadApproachList(airportSelector.value);
 });
 
 // Update time display every second
@@ -226,6 +227,13 @@ airportSelector.addEventListener('change', () => {
     departuresTimestamps = {};
     updateDepartures(aircraftData);
     generateATIS();
+    loadApproachList(airportSelector.value);
+    document.getElementById('airport-dropdown-app').value = airportSelector.value
+});
+
+document.getElementById('airport-dropdown-app').addEventListener('change', () => {
+    loadApproachList(document.getElementById('airport-dropdown-app').value);
+    airportSelector.value = document.getElementById('airport-dropdown-app').value
 });
 
 function loadAirportData(airportSelector) {
@@ -528,6 +536,12 @@ document.getElementById('atis-icon').addEventListener('click', () => {
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
+document.getElementById('approach-button').addEventListener('click', () => {
+    const overlay = document.getElementById('approach-overlay');
+    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.style.zIndex = getHighestZIndex() + 1;
+});
+
 //atis stuff
 document.getElementById('atis-gen-button').addEventListener('click', () => {
     generateATIS();
@@ -673,8 +687,8 @@ function loadGroundDisplay(cont) {
 }
 
 //webSocket client to receive aircraft data
-const socket = new WebSocket(`wss://atc24radar-server-production.up.railway.app`);
-//const socket = new WebSocket(`ws://localhost:${PORT}`);
+//const socket = new WebSocket(`wss://atc24radar-server-production.up.railway.app`);
+const socket = new WebSocket(`ws://localhost:${PORT}`);
 
 socket.onmessage = event => {
     const message = JSON.parse(event.data);
@@ -695,6 +709,44 @@ socket.onmessage = event => {
 };
 
 socket.onerror = err => console.error('WebSocket error:', err);
+
+async function loadApproachList(icao) {
+    let paths;
+    const svgContainer = document.getElementById('map-svg');
+    if (svgContainer) {
+        paths = svgContainer.querySelectorAll('.approach-path')
+    };
+    if (paths) paths.forEach(el => el.remove());
+
+    const res = await fetch(`http://127.0.0.1:4000/approaches/${icao}`)
+    if (!res.ok) return console.error('Could not load approaches');
+    const files = await res.json();
+
+    const container = document.getElementById('approach-toggles');
+    container.innerHTML = ''; // clear previous toggles
+
+    files.forEach(file => {
+        
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.file = file;
+
+        checkbox.addEventListener('change', e => {
+            if (e.target.checked) {
+                loadApproachSVG(icao, file);
+            } else {
+                removeApproachSVG(file);
+            }
+        });
+
+        label.appendChild(checkbox);
+        label.append(` ${file.replace('.svg', '')}`);
+        container.appendChild(label);
+        container.appendChild(document.createElement('br'));
+    });
+}
+
 
 let departuresElements = {};
 let departuresTimestamps = {};
@@ -1848,7 +1900,6 @@ function fetchMapLayerGround(container) {
             svg.style.transform = `rotate(${rotation}deg)`
 
             //zoom in or out
-            console.log(airportSelector.value);
             let maxZoom = groundOffsetsMap.get(airportSelector.value).zoom;
             groundCurrentZoom = maxZoom;
             viewBox.x = groundOffsetsMap.get(airportSelector.value).x;
@@ -2157,6 +2208,38 @@ function fetchMapLayer(container) {
             console.error(err);
             container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
         });
+}
+function loadApproachSVG(path, file) {
+    fetch(`public/assets/maps/${path}/${file}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load SVG: ' + response.status);
+            return response.text();
+        })
+        .then(svgText => {
+            const temp = document.createElement('div');
+            temp.innerHTML = svgText.trim();
+
+            const importedSVG = temp.querySelector('svg');
+            if (!importedSVG) throw new Error('No <svg> found in file');
+
+            const svgId = 'approach-' + file.replace('.svg', '');
+            importedSVG.id = svgId;
+            importedSVG.classList.add('approach-path');
+
+            const svgContainer = document.getElementById('map-svg');
+            svgContainer.appendChild(importedSVG);
+        })
+        .catch(err => {
+            console.error(err);
+            const container = document.getElementById('map-svg');
+            container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
+        });
+}
+
+function removeApproachSVG(file) {
+    const svgId = 'approach-' + file.replace('.svg', '');
+    const elem = document.getElementById(svgId);
+    if (elem) elem.remove();
 }
 
 /*fetch rings SVG **currently disabled

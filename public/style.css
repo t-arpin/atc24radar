@@ -303,9 +303,10 @@ a {
     width: 65px;
 }
 
-#approch-button {
-    background-color: #3e3e3e;
+#approach-button {
+    background-color: #303030;
     height: 40px;
+    width: 50px;
 }
 
 #info-overlay {
@@ -774,4 +775,25 @@ input {
     color: rgb(122, 122, 122);
     font-size: .5em;
     width: fit-content;
+}
+
+#approach-overlay {
+    right: 30vw;
+    bottom: 50vh;
+    display: flex;
+    flex-direction: column;
+    width: 100px;
+    gap: 10px;
+}
+
+#airport-dropdown-app {
+    background-color: #303030;
+    color: #fff;
+    font-family: inherit;
+    border-radius: 8px;
+    padding: 6px 10px;
+    width: 100px;
+    cursor: pointer;
+    text-align: center;
+    outline: none;
 }

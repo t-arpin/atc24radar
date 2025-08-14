@@ -2,6 +2,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const WebSocket = require('ws');
 const http = require('http');
+const cors = require('cors');
 
 const PORT = 4000;
 const API_URL = 'https://24data.ptfs.app/acft-data';
@@ -17,9 +18,24 @@ const wss = new WebSocket.Server({ server });
 const altitudeThreshold = 100;
 const groundSpeedThreshold = 100;
 let isOnGround = null;
-    
 
 app.use(express.static('public'));
+app.use(cors()); // allow all origins
+
+const path = require('path');
+const fs = require('fs');
+
+app.get('/approaches/:icao', (req, res) => {
+    const airport = req.params.icao.toUpperCase();
+    const folder = path.join(__dirname, '..', 'public', 'assets', 'maps', airport);
+
+    fs.readdir(folder, (err, files) => {
+        if (err) return res.status(404).json({ error: `Airport not found, ${folder}` });
+
+        const svgs = files.filter(f => f.endsWith('.svg') && f.toUpperCase() !== 'GROUND.SVG');
+        res.json(svgs);
+    });
+});
 
 // Internal flight plan storage by playerName
 const flightPlanMap = new Map(); // key: playerName, value: { ...flightPlan, timestamp }
