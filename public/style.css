@@ -649,3 +649,104 @@ input {
     margin: 0 auto;
     display: block;
 }
+
+#atis-overlay {
+    display: flex;
+    top: 200px;
+    left: 400px;
+    font-size: .7em;
+    height: 270px;
+    padding: 10px;
+    gap: 10px;
+}
+
+.left input {
+    width: 100%;
+    border-radius: 0;
+}
+
+.left h4 {
+    margin: 0;
+    margin-bottom: 5px;
+}
+
+.left input[type="checkbox"] {
+    width: auto;
+}
+
+.left {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 100px 100px 100px 100px;
+    grid-template-rows: 100px 115px;
+}
+
+.left select {
+    margin-block: 10px;
+}
+
+#output {
+    white-space: pre-wrap;
+    border: 1px solid #555;
+    padding: 10px;
+    height: 250px;
+    width: 400px;
+    overflow-y: auto;
+    font-size: .9em;
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
+}
+
+#output::-webkit-scrollbar {
+    width: 6px; /* Thin scrollbar */
+}
+
+#output::-webkit-scrollbar-track {
+    background: transparent; /* No track background */
+}
+
+#output::-webkit-scrollbar-thumb {
+    background-color: #555; /* Dark thumb */
+    border-radius: 3px;
+}
+
+#output::-webkit-scrollbar-thumb:hover {
+    background-color: #777; /* Slightly lighter on hover */
+}
+
+.left  textarea {
+    width: 200%;
+    height: 100%;
+    resize: none;
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
+}
+
+.left  textarea::-webkit-scrollbar {
+    width: 6px; /* Thin scrollbar */
+}
+
+.left  textarea::-webkit-scrollbar-track {
+    background: transparent; /* No track background */
+}
+
+.left  textarea::-webkit-scrollbar-thumb {
+    background-color: #555; /* Dark thumb */
+    border-radius: 3px;
+}
+
+.left  textarea::-webkit-scrollbar-thumb:hover {
+    background-color: #777; /* Slightly lighter on hover */
+}
+
+
+#atis-gen-button {
+    font-family: inherit;
+    margin-top: 15px;
+    padding: 5px;
+}
+
+#copied-text {
+    margin-top: 5px; 
+    color: #48fb99;
+}

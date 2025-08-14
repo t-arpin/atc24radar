@@ -6,6 +6,7 @@ import AirportNamesMap from "../src/data/AirportNamesMap.js";
 import AircraftIconMap from "../src/data/AircraftIconMap.js";
 import AircraftScaleMap from "../src/data/AircraftScaleMap.js";
 import GroundOffsets from "../src/data/GroundOffsets.js";
+import chartsLinkPath from "../src/data/ChartsLinkPath.js";
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -36,6 +37,7 @@ const airportNamesMap = new Map(Object.entries(AirportNamesMap));
 const aircraftIconMap = new Map(Object.entries(AircraftIconMap));
 const aircraftScaleMap = new Map(Object.entries(AircraftScaleMap));
 const groundOffsetsMap = new Map(Object.entries(GroundOffsets));
+const chartsLinkPathMap = new Map(Object.entries(chartsLinkPath));
 
 //svg
 const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
@@ -108,7 +110,7 @@ function overlaySetup(overlay){
     overlay.style.zIndex = '100';
 
     overlay.addEventListener('mousedown', e => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
         if (e.button == 0) {
             isDraggingOverlay = true;
             target = overlay;
@@ -223,6 +225,7 @@ airportSelector.addEventListener('change', () => {
     departuresElements = {};
     departuresTimestamps = {};
     updateDepartures(aircraftData);
+    generateATIS();
 });
 
 function loadAirportData(airportSelector) {
@@ -288,7 +291,7 @@ function loadAirportData(airportSelector) {
 
     
     const stationCenter = stationMap.get(folder);
-    const stationType = 'CTR';
+    const stationType = 'CTR'; // add map for type
 
     document.querySelector('#station-info').innerHTML = `${stationCenter}-${stationType}`
     /*
@@ -484,22 +487,112 @@ sideButton2.addEventListener('click', () => {
 settingsButton.addEventListener('click', () => {
     const overlay = document.getElementById('settings-overlay');
     overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+    overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('notepad-icon').addEventListener('click', () => {
     const overlay = document.getElementById('notepad-overlay');
     overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+    overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('departures-icon').addEventListener('click', () => {
     const overlay = document.getElementById('departures-overlay');
     overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('arrivals-icon').addEventListener('click', () => {
     const overlay = document.getElementById('arrivals-overlay');
     overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.style.zIndex = getHighestZIndex() + 1;
 });
+
+document.getElementById('atis-icon').addEventListener('click', () => {
+    const overlay = document.getElementById('atis-overlay');
+    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.style.zIndex = getHighestZIndex() + 1;
+});
+
+//atis stuff
+document.getElementById('atis-gen-button').addEventListener('click', () => {
+    generateATIS();
+    copyATIS();
+})
+
+document.getElementById('atis-overlay').querySelectorAll('input, select, textarea').forEach(el => {
+    el.addEventListener('input', generateATIS);
+    el.addEventListener('change', generateATIS);
+});
+
+function generateATIS() {
+    const code = document.getElementById('atisCode').value;
+    const maxTaxi = document.getElementById('maxTaxi').value;
+    const qnh = document.getElementById('qnh').value;
+    const parking = document.getElementById('parking').checked;
+    const acTypeGround = document.getElementById('acTypeGround').checked;
+    const airACType = document.getElementById('airACType').checked;
+    const airAltitude = document.getElementById('airAltitude').checked;
+    const airAirspeed = document.getElementById('airAirspeed').checked;
+    const airHeading = document.getElementById('airHeading').checked;
+    const charts = document.getElementById('charts').value;
+    const sidsStars = document.getElementById('sidsStars').checked;
+    const pdc = document.getElementById('pdc').checked;
+    const notams = document.getElementById('notams').value;
+    
+    const time = new Date().toISOString().slice(11,16).replace(':','') + 'z';
+    
+    let groundText = "Ground Acft Advise Receipt of Information " + code;
+    if (parking) groundText += ", Stand Number on Initial Contact";
+    if (acTypeGround) groundText += ", Aircraft Type";
+    groundText += ".";
+    
+    let airText = "Airborne Acft Advise Receipt of Information " + code;
+    if (airACType) airText += ", Aircraft Type";
+    if (airAltitude) airText += ", Altitude";
+    if (airAirspeed) airText += ", Airspeed";
+    if (airHeading) airText += ", Heading";
+    airText += " on Initial Contact.";
+    
+    let sidsText = sidsStars ? "SIDs/STARs are preferred.\n" : "";
+    let pdcText = pdc ? "PDC available.\n" : "";
+
+    const stationType = 'CTR';
+    const chartsLink = charts == 'Offical' ? `https://github.com/Treelon/ptfs-charts/tree/main/${chartsLinkPathMap.get(airportSelector.value)}` : 'N/A';
+    
+    const atis =
+`∎ IRFD ATIS Information ${code} ${time} ∎
+**―――――――――――――――**
+**Controller Callsign:** ${airportSelector.value}_${stationType}
+**―――――――――――――――**
+**Aerodrome:**
+Max Taxi Speed: ${maxTaxi}kts
+Arrival Runway(s):
+Departure Runway(s):
+Max Acft Size: N/A
+QNH: ${qnh}
+
+**NOTAMS:**
+${groundText}
+${airText}
+VFR Acft say Direction of Flight and Intentions.
+${notams ? notams + "\n" : ""}${sidsText}${pdcText}
+**Charts:**
+Chart Pack Author: ${charts}
+Chart Pack Link: <${chartsLink}>
+**―――――――――――――――**
+∎ End of ATIS Information ${code} ∎`;
+
+    document.getElementById('output').textContent = atis;
+}
+
+function copyATIS() {
+    const text = document.getElementById('output').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        document.getElementById('copied-text').innerHTML = 'ATIS message copied';
+    });
+}
+
 
 window.addEventListener('load', function () {
     const sideButtons = document.querySelectorAll('.sidebar-button');
@@ -1135,10 +1228,10 @@ function updateGroundLabel(group, info, id) {
 
     if (info.flightPlan != null) {
         if (info.flightPlan.departing == airportSelector.value) {
-            color = '#fce241';
+            color = '#48b8fb';
         }
         if (info.flightPlan.arriving == airportSelector.value) {
-            color = '#48b8fb';
+            color = '#fce241';
         }
         if (info.flightPlan.flightrules == 'VFR' && (info.flightPlan.departing == airportSelector.value || info.flightPlan.arriving == airportSelector.value)){
             color = '#48fb99ff';
@@ -1580,10 +1673,10 @@ function updateLabel(group, info, id) {
 
     if (info.flightPlan) {
         if (info.flightPlan.departing == airportSelector.value) {
-            color = '#fce241';
+            color = '#48b8fb';
         }
         if (info.flightPlan.arriving == airportSelector.value) {
-            color = '#48b8fb';
+            color = '#fce241';
         }
         if (info.flightPlan.flightrules == 'VFR' && (info.flightPlan.departing == airportSelector.value || info.flightPlan.arriving == airportSelector.value)){
             color = '#48fb99ff';
