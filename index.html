@@ -65,7 +65,10 @@
                 </svg>
             </div>
         </div>
-        <div id="station-info"></div>
+        <div id="top-info-cont">
+            <div id="station-info"></div>
+            <div id="wind-container">W: No Data</div>
+        </div>
         <div style="font-size: 2em; font-weight: 100;">|</div>
         <a id="name" href="https://github.com/t-arpin/atc24radar/tree/main">atc24radar</a>
     </div>
@@ -126,6 +129,9 @@
         <div style="font-size: .8em; margin-block: 5px;">Graphics</div>
         <div style="display: flex; align-items: center; font-size: .7em;">
             Airspace Bounds<input id="bounds-check" type="checkbox" checked></input>
+        </div>
+        <div style="display: flex; align-items: center; font-size: .7em;">
+            Minimalistic Toolbar<input id="min-tool" type="checkbox"></input>
         </div>
     </div>
     <div id="notepad-overlay" class="overlay">

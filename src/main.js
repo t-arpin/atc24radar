@@ -490,6 +490,20 @@ settingsButton.addEventListener('click', () => {
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
+document.getElementById('min-tool').addEventListener('click', () => {
+    const topBar = document.getElementById('top-bar');
+    topBar.style.cssText = document.getElementById('min-tool').checked ? `
+        top: 0;
+        left: 0;
+        right 0;
+        height: auto;
+        width: 100vw;
+        border-radius: 0;
+        font-size: .7em;
+    ` : 
+    topBar.style.cssText = '';
+});
+
 document.getElementById('notepad-icon').addEventListener('click', () => {
     const overlay = document.getElementById('notepad-overlay');
     overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
@@ -593,6 +607,13 @@ function copyATIS() {
     });
 }
 
+function setWinds() {
+    const windParts = Object.values(aircraftData)[0]?.wind.split("/");
+    const dir = windParts[0].padStart(3, '0')
+    const speed = windParts[1].padStart(2, '0')
+    document.getElementById('wind-container').innerHTML = `W: ${dir}/${speed}`; 
+}
+
 
 window.addEventListener('load', function () {
     const sideButtons = document.querySelectorAll('.sidebar-button');
@@ -669,6 +690,7 @@ socket.onmessage = event => {
             updateDepartures(enrichedAircraftMap);
         });
         updateArrivals(enrichedAircraftMap);
+        setWinds();
     }
 };
 
