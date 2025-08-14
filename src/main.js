@@ -227,7 +227,7 @@ airportSelector.addEventListener('change', () => {
 
 function loadAirportData(airportSelector) {
     const folder = airportSelector.value;
-    const svgPath = `../public/assets/maps/${folder}/GROUND.svg`;
+    const svgPath = `public/assets/maps/${folder}/GROUND.svg`;
 
     fetch(svgPath)
         .then(response => {
@@ -303,7 +303,7 @@ function loadAirportData(airportSelector) {
 
 function loadGroundChartSVG(airportSelector, cont) {
     const folder = airportSelector.value;
-    const svgPath = `../public/assets/maps/${folder}/GROUND.svg`;
+    const svgPath = `public/assets/maps/${folder}/GROUND.svg`;
 
     fetch(svgPath)
         .then(response => {
@@ -1418,9 +1418,9 @@ function updateAircraftLayer(data) {
 function getPlaneIcon(type, group, heading) {
     let svgPath = null;
     if (aircraftIconMap.get(type) == undefined) {
-        svgPath = `../public/assets/plane-Icons/GeneralAviation.svg`;
+        svgPath = `public/assets/plane-Icons/GeneralAviation.svg`;
     } else {
-        svgPath = `../public/assets/plane-Icons/${aircraftIconMap.get(type)}.svg`;
+        svgPath = `public/assets/plane-Icons/${aircraftIconMap.get(type)}.svg`;
     }
     
 
@@ -1655,7 +1655,7 @@ function updateMeasuringTool(x, y) {
 
 function fetchMapLayerGround(container) {
     //fetch main SVG
-    fetch('../public/assets/coast.svg')
+    fetch('public/assets/coast.svg')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load SVG: ' + response.status);
@@ -1840,7 +1840,7 @@ function fetchMapLayerGround(container) {
 
 function fetchMapLayer(container) {
     //fetch main SVG
-    fetch('../public/assets/coast.svg')
+    fetch('public/assets/coast.svg')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load SVG: ' + response.status);
@@ -2021,7 +2021,7 @@ function fetchMapLayer(container) {
         });
 
     //fetch boundaries SVG
-    fetch('../public/assets/boundaries.svg')
+    fetch('public/assets/boundaries.svg')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load SVG: ' + response.status);
@@ -2045,7 +2045,7 @@ function fetchMapLayer(container) {
 }
 
 /*fetch rings SVG **currently disabled
-fetch('../public/assets/rings.svg')
+fetch('public/assets/rings.svg')
     .then(response => {
         if (!response.ok) {
             throw new Error('Failed to load SVG: ' + response.status);
