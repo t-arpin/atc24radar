@@ -183,12 +183,13 @@ function updateOverlay(id, info) {
                 <span>Callsign⠀⠀⠀⠀⠀: ${fp.callsign}</span>
                 <span>Filed Cruise : FL${fp.flightlevel}</span>
                 <span>Flight Rules : ${fp.flightrules}</span>
+                <span>Route⠀⠀⠀⠀⠀⠀⠀⠀: ${fp.route}</span>
                 <span>Status⠀⠀⠀⠀⠀⠀⠀: ${info.flightStatus}</span>
             </div>
         `;
     } else {
         infoOverlay.querySelector('#route-container').innerHTML = `<div id="departure" class="route">N/A<span class="airport-name">Not available</span></div><div id="arival" class="route">N/A<span class="airport-name">Not available</span></div><div id="plane-icon-container"></div>`;
-        infoOverlay.querySelector('#flight-plan').innerHTML = `<div id="details-spacer"></div><div id="fp-info"><span>Callsign⠀⠀⠀⠀⠀: No FLP</span><span>Filed Cruise : No FLP</span><span>Flight Rules : No FLP</span><span>Status⠀⠀⠀⠀⠀⠀⠀: Cruise</span></div>`;
+        infoOverlay.querySelector('#flight-plan').innerHTML = `<div id="details-spacer"></div><div id="fp-info"><span>Callsign⠀⠀⠀⠀⠀: No FLP</span><span>Filed Cruise : No FLP</span><span>Flight Rules : No FLP</span><span>Status⠀⠀⠀⠀⠀⠀⠀: No FLP</span></div>`;
     }
 
     infoOverlay.querySelector('#callsign-bar').innerHTML = callsignMap.get(carrier) + number;
@@ -202,7 +203,7 @@ function updateOverlay(id, info) {
                 <div style="display: flex; justify-content: space-between;">
                     <span>Altitude: ${info.altitude}ft</span>
                     <span >Heading: ${info.heading}°</span>
-                    <span >Speed: ${info.speed}kt</span>
+                    <span >Speed: ${info.isOnGround}kt</span>
                 </div>
     `;
     infoOverlay.querySelector('#plane-icon-container').innerHTML = icon;
@@ -317,58 +318,59 @@ function loadGroundChartSVG(airportSelector, cont) {
             }
 
             const mapSvg = cont.querySelector('#ground-map-svg');
-            mapSvg.innerHTML += svgText;
+            setTimeout(() => {
+                mapSvg.innerHTML += svgText;
 
-            const loaded = mapSvg.querySelector('svg:last-of-type');
-            if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
+                const loaded = mapSvg.querySelector('svg:last-of-type');
+                if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
 
-            loaded.setAttribute('id', 'groundCenter-svg');
+                loaded.setAttribute('id', 'groundCenter-svg');
 
-            //change colors
-            let allShapes = null;
+                //change colors
+                let allShapes = null;
 
-            // Taxiways Lines
-            const taxiwaysLines = Array.from(loaded.querySelectorAll('g'))
-                .find(el => el.getAttribute('inkscape:label') === 'Taxiway Lines');
+                // Taxiways Lines
+                const taxiwaysLines = Array.from(loaded.querySelectorAll('g'))
+                    .find(el => el.getAttribute('inkscape:label') === 'Taxiway Lines');
 
-            if (taxiwaysLines) {
-                allShapes = taxiwaysLines.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-                allShapes.forEach(el => {
-                    el.removeAttribute('fill');
-                    el.removeAttribute('style');
-                    el.setAttribute('fill', 'none');
-                    el.setAttribute('stroke', 'black');
-                    el.setAttribute('stroke-width', 1.5 * groundCurrentZoom);
-                });
-            }
+                if (taxiwaysLines) {
+                    allShapes = taxiwaysLines.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+                    allShapes.forEach(el => {
+                        el.removeAttribute('fill');
+                        el.removeAttribute('style');
+                        el.setAttribute('fill', 'none');
+                        el.setAttribute('stroke', 'black');
+                        el.setAttribute('stroke-width', 1.5 * groundCurrentZoom);
+                    });
+                }
 
-            // Taxiways
-            const taxiways = Array.from(loaded.querySelectorAll('g'))
-                .find(el => el.getAttribute('inkscape:label') === 'Taxiways / Ramps');
-            if (taxiways) {
-                allShapes = taxiways.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-                allShapes.forEach(el => {
-                    el.removeAttribute('fill');
-                    el.removeAttribute('style');
-                    el.setAttribute('fill', '#414141');
-                });
-            }
+                // Taxiways
+                const taxiways = Array.from(loaded.querySelectorAll('g'))
+                    .find(el => el.getAttribute('inkscape:label') === 'Taxiways / Ramps');
+                if (taxiways) {
+                    allShapes = taxiways.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+                    allShapes.forEach(el => {
+                        el.removeAttribute('fill');
+                        el.removeAttribute('style');
+                        el.setAttribute('fill', '#414141');
+                    });
+                }
 
-            // Buildings and Runways
-            const buildings = Array.from(loaded.querySelectorAll('g'))
-                .find(el => el.getAttribute('inkscape:label') === 'Runways / Buildings');
+                // Buildings and Runways
+                const buildings = Array.from(loaded.querySelectorAll('g'))
+                    .find(el => el.getAttribute('inkscape:label') === 'Runways / Buildings');
 
-            if (buildings) {
-                allShapes = buildings.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-                allShapes.forEach(el => {
-                    el.removeAttribute('fill');
-                    el.removeAttribute('style');
-                    el.setAttribute('fill', '#222222');
-                    el.setAttribute('stroke', 'none');
-                    el.setAttribute('stroke-width', 0.5 * groundCurrentZoom);
-                });
-            }
-
+                if (buildings) {
+                    allShapes = buildings.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
+                    allShapes.forEach(el => {
+                        el.removeAttribute('fill');
+                        el.removeAttribute('style');
+                        el.setAttribute('fill', '#222222');
+                        el.setAttribute('stroke', 'none');
+                        el.setAttribute('stroke-width', 0.5 * groundCurrentZoom);
+                    });
+                }
+            }, 100);
         })
         .catch(err => {
             console.error(err);
@@ -553,7 +555,7 @@ function loadGroundDisplay(cont) {
         if (aircraftData != null) {
             updateGroundAircraftLayer(aircraftData, groundView);
         }
-    }, 100);
+    }, 200);
 }
 
 //webSocket client to receive aircraft data
@@ -587,7 +589,7 @@ function updateDepartures(data){
     //add new rows
     for (const [id, info] of Object.entries(data)) {
         const fp = info.flightPlan;
-        if (!fp || fp.departing !== airportSelector.value) continue;
+        if (!fp || fp.departing !== airportSelector.value || (fp.flightStatus === "landed" || info.flightStatus === "desceding" || info.flightStatus === "inFlight")) continue;
         
         newIds.add(id);
 
@@ -596,9 +598,9 @@ function updateDepartures(data){
         let filedCruisingAltitude = inputCruising
             ? parseInt(inputCruising.value)
             : parseInt(fp.cruisingAltitude);
-        const isCruising = info.flightStatus === "cruising" || "climbing";
+        const isCruising = info.flightStatus === "cruising" || info.flightStatus === "climbing";
 
-        if (!isNaN(currentAltitude) && !isNaN(filedCruisingAltitude) && isCruising && currentAltitude === filedCruisingAltitude) {
+        if (isCruising && (currentAltitude === filedCruisingAltitude)) {
             const group = arrivalsElements[id];
             if (group && group.parentNode) {
                 group.parentNode.removeChild(group);
@@ -761,7 +763,7 @@ function updateArrivals(data){
     //add new rows
     for (const [id, info] of Object.entries(data)) {
         const fp = info.flightPlan;
-        if (!fp || fp.arriving !== airportSelector.value) continue;
+        if (!fp || fp.arriving !== airportSelector.value || info.isOnGround) continue;
         
         newIds.add(id);
 
@@ -1137,6 +1139,9 @@ function updateGroundLabel(group, info, id) {
         }
         if (info.flightPlan.arriving == airportSelector.value) {
             color = '#48b8fb';
+        }
+        if (info.flightPlan.flightrules == 'VFR' && (info.flightPlan.departing == airportSelector.value || info.flightPlan.arriving == airportSelector.value)){
+            color = '#48fb99ff';
         }
         text.setAttribute("fill", color);
     }
@@ -1573,7 +1578,7 @@ function updateLabel(group, info, id) {
     }
     let color = 'white'
 
-    if (info.flightPlan != null) {
+    if (info.flightPlan) {
         if (info.flightPlan.departing == airportSelector.value) {
             color = '#fce241';
         }
@@ -1587,8 +1592,6 @@ function updateLabel(group, info, id) {
     }
 
     label.setAttribute('font-size', labelFontSize * currentZoom);
-    label.setAttribute("x", label.getAttribute('x') * currentZoom); // offset for label
-    label.setAttribute("y", label.getAttribute('y') * currentZoom); // offset for label
 
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];

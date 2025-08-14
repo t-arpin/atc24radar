@@ -190,11 +190,13 @@ function updateFlightStatus(callsign, ac, flightPlan) {
         if (stationaryFor(callsign, 5 * 60 * 1000)) {
             state = "parked";
         }
-        // If still landed and no new plan, don't change
-        s.lastAltitude = ac.altitude;
-        s.lastOnGround = ac.isOnGround;
-        s.lastState = state;
-        return state;
+        if (ac.isOnGround) {
+            // If still landed and no new plan, don't change
+            s.lastAltitude = ac.altitude;
+            s.lastOnGround = ac.isOnGround;
+            s.lastState = state;
+            return state;
+        } 
     }
 
     // State logic
@@ -213,6 +215,9 @@ function updateFlightStatus(callsign, ac, flightPlan) {
             state = "cruising";
         } else if (ac.altitude < s.lastAltitude - 50 && cruiseAlt && ac.altitude < cruiseAlt - 500) {
             state = "descending";
+        }
+        if (isNaN(cruiseAlt)) {
+            state = "inFlight";
         }
     }
 
