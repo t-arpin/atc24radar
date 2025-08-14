@@ -205,7 +205,7 @@ function updateOverlay(id, info) {
                 <div style="display: flex; justify-content: space-between;">
                     <span>Altitude: ${info.altitude}ft</span>
                     <span >Heading: ${info.heading}°</span>
-                    <span >Speed: ${info.isOnGround}kt</span>
+                    <span >Speed: ${info.speed}kt</span>
                 </div>
     `;
     infoOverlay.querySelector('#plane-icon-container').innerHTML = icon;
