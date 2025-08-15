@@ -687,8 +687,9 @@ function loadGroundDisplay(cont) {
 }
 
 //webSocket client to receive aircraft data
-//const socket = new WebSocket(`wss://atc24radar-server-production.up.railway.app`);
-const socket = new WebSocket(`ws://localhost:${PORT}`);
+const serverAddress = 'atc24radar-server-production.up.railway.app';
+//const serverAddress = `ws://localhost:${PORT}`;
+const socket = new WebSocket(`wss://${serverAddress}`);
 
 socket.onmessage = event => {
     const message = JSON.parse(event.data);
@@ -718,7 +719,7 @@ async function loadApproachList(icao) {
     };
     if (paths) paths.forEach(el => el.remove());
 
-    const res = await fetch(`http://127.0.0.1:4000/approaches/${icao}`)
+    const res = await fetch(`https://${serverAddress}/approaches/${icao}`)
     if (!res.ok) return console.error('Could not load approaches');
     const files = await res.json();
 

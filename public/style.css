@@ -780,7 +780,7 @@ input {
 #approach-overlay {
     right: 30vw;
     bottom: 50vh;
-    display: flex;
+    display: none;
     flex-direction: column;
     width: 100px;
     gap: 10px;
