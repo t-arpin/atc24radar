@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const WebSocket = require('ws');
 const http = require('http');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const PORT = 4000;
 const API_URL = 'https://24data.ptfs.app/acft-data';
@@ -17,16 +18,54 @@ const wss = new WebSocket.Server({ server });
 
 const altitudeThreshold = 100;
 const groundSpeedThreshold = 100;
-let isOnGround = null;
+
+const allowedOrigins = [
+    'https://t-arpin.github.io/atc24radar/',
+    'http://127.0.0.1:3000'
+];
 
 app.use(express.static('public'));
-app.use(cors()); // allow all origins
+app.use(cors({ origin: allowedOrigins }));
+
+// Middleware to protect all GET requests
+app.use((req, res, next) => {
+    if (req.method === 'GET') {
+        const origin = req.get('Origin') || req.get('Referer') || '';
+        const allowed = allowedOrigins.some(o => origin.startsWith(o));
+
+        if (!allowed) {
+            const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+            console.warn(`403 Forbidden request from IP: ${ip}, Origin: ${origin}`);
+            return res.status(403).sendFile(path.join(__dirname, 'public', '403.html'));
+        }
+    }
+    next();
+});
+
+const getLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute window
+    max: 60, // max 30 requests per IP per minute
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.use((req, res, next) => {
+    if (req.method === 'GET') {
+        getLimiter(req, res, next);
+    } else {
+        next();
+    }
+});
 
 const path = require('path');
 const fs = require('fs');
 
 app.get('/approaches/:icao', (req, res) => {
     const airport = req.params.icao.toUpperCase();
+    if (!/^[A-Z]{4}$/.test(airport)) {
+        return res.status(400).json({ error: 'Invalid airport code' });
+    }
     const folder = path.join(__dirname, '..', 'public', 'assets', 'maps', airport);
 
     fs.readdir(folder, (err, files) => {
@@ -97,6 +136,8 @@ externalWS.on('close', () => {
     console.warn('24data flight plan WebSocket closed');
 });
 
+let latestEnrichedData = {};
+
 async function fetchAircraftData() {
     try {
         const res = await fetch(API_URL);
@@ -104,30 +145,27 @@ async function fetchAircraftData() {
 
         const enrichedData = {};
         const now = Date.now();
-
         const currentPlayers = new Set();
 
         for (const [callsign, ac] of Object.entries(rawData)) {
             const playerName = ac.playerName;
             if (playerName) {
                 currentPlayers.add(playerName);
-                lastSeenMap.set(playerName, now); // update last seen time
+                lastSeenMap.set(playerName, now);
             }
 
             const flightPlan = playerName ? flightPlanMap.get(playerName) ?? null : null;
             const flightStatus = updateFlightStatus(callsign, ac, flightPlan);
 
-            isOnGround = ac.altitude < altitudeThreshold && ac.groundSpeed < groundSpeedThreshold;
-
             enrichedData[callsign] = {
                 heading: ac.heading,
                 altitude: ac.altitude,
-                playerName: playerName,
+                playerName,
                 aircraftType: ac.aircraftType,
                 position: ac.position,
                 speed: ac.speed,
                 wind: ac.wind,
-                isOnGround: isOnGround,
+                isOnGround: ac.altitude < altitudeThreshold && ac.groundSpeed < groundSpeedThreshold,
                 isTaxiing: ac.isOnGround,
                 groundSpeed: ac.groundSpeed,
                 flightPlan,
@@ -135,20 +173,22 @@ async function fetchAircraftData() {
             };
         }
 
-        // Remove flight plans for missing aircraft (> 60 sec)
+        // Remove flight plans for missing aircraft
         for (const [playerName, lastSeen] of lastSeenMap.entries()) {
             if (!currentPlayers.has(playerName) && now - lastSeen > MISSING_AC_TTL_MS) {
                 flightPlanMap.delete(playerName);
                 lastSeenMap.delete(playerName);
-                console.log(`Removed flight plan for ${playerName} (missing > 60s)`);
             }
         }
 
+        // Save for GET endpoint
+        latestEnrichedData = enrichedData;
+
+        // Still broadcast via WebSocket to your own clients (if needed)
         const packet = JSON.stringify({
             type: 'ENRICHED_AIRCRAFT_DATA',
             data: enrichedData
         });
-
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(packet);
@@ -159,6 +199,11 @@ async function fetchAircraftData() {
         console.error('Error fetching aircraft data:', err.message);
     }
 }
+
+// NEW: GET endpoint for frontend polling
+app.get('/data', (req, res) => {
+    res.json(latestEnrichedData);
+});
 
 const aircraftStates = {}; // keyed by callsign
 

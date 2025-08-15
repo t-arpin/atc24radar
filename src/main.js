@@ -82,6 +82,7 @@ window.addEventListener('load', function () {
         overlaySetup(el);
     });
     loadApproachList(airportSelector.value);
+    fetchData();
 });
 
 // Update time display every second
@@ -687,15 +688,16 @@ function loadGroundDisplay(cont) {
 }
 
 //webSocket client to receive aircraft data
-const serverAddress = 'atc24radar-server-production.up.railway.app';
-//const serverAddress = `ws://localhost:${PORT}`;
-const socket = new WebSocket(`wss://${serverAddress}`);
+const secureProtocol = 's';
+//const serverAddress = 'atc24radar-server-production.up.railway.app';
+//const serverAddress = `localhost:${PORT}`;
 
-socket.onmessage = event => {
-    const message = JSON.parse(event.data);
-
-    if (message.type === 'ENRICHED_AIRCRAFT_DATA') {
-        const enrichedAircraftMap = message.data; // object with callsign keys
+async function fetchData() {
+    try {
+        const response = await fetch(`http${secureProtocol}://${serverAddress}/data`);
+        if (!response.ok) throw new Error("Network response was not ok");
+        
+        const enrichedAircraftMap = await response.json();
         aircraftData = enrichedAircraftMap;
         updateAircraftLayer(enrichedAircraftMap);
         document.querySelectorAll('#ground-container').forEach(cont => {
@@ -706,10 +708,12 @@ socket.onmessage = event => {
         });
         updateArrivals(enrichedAircraftMap);
         setWinds();
-    }
-};
 
-socket.onerror = err => console.error('WebSocket error:', err);
+    } catch (error) {
+        console.error("Error fetching data:", error);
+    }
+}
+setInterval(fetchData, 3000);
 
 async function loadApproachList(icao) {
     let paths;
@@ -719,7 +723,7 @@ async function loadApproachList(icao) {
     };
     if (paths) paths.forEach(el => el.remove());
 
-    const res = await fetch(`https://${serverAddress}/approaches/${icao}`)
+    const res = await fetch(`http${secureProtocol}://${serverAddress}/approaches/${icao}`)
     if (!res.ok) return console.error('Could not load approaches');
     const files = await res.json();
 
