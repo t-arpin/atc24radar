@@ -36,7 +36,7 @@ app.use((req, res, next) => {
         if (!allowed) {
             const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
             console.warn(`403 Forbidden request from IP: ${ip}, Origin: ${origin}`);
-            return res.status(403).sendFile(path.join(__dirname, 'public', '403.html'));
+            return res.status(403).sendFile(path.join(__dirname, '403.html'));
         }
     }
     next();

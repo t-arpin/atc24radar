@@ -689,7 +689,7 @@ function loadGroundDisplay(cont) {
 
 //webSocket client to receive aircraft data
 const secureProtocol = 's';
-//const serverAddress = 'atc24radar-server-production.up.railway.app';
+const serverAddress = 'atc24radar-server-production.up.railway.app';
 //const serverAddress = `localhost:${PORT}`;
 
 async function fetchData() {
