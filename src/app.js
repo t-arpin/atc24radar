@@ -19,9 +19,12 @@ const wss = new WebSocket.Server({ server });
 const altitudeThreshold = 100;
 const groundSpeedThreshold = 100;
 
+const myIP = process.env.PERSONAL_IP;
+
 const allowedOrigins = [
-    'https://t-arpin.github.io/atc24radar/',
-    'http://127.0.0.1:3000'
+    'https://t-arpin.github.io',
+    'http://127.0.0.1:3000',
+    myIP
 ];
 
 app.use(express.static('public'));
@@ -66,7 +69,7 @@ app.get('/approaches/:icao', (req, res) => {
     if (!/^[A-Z]{4}$/.test(airport)) {
         return res.status(400).json({ error: 'Invalid airport code' });
     }
-    const folder = path.join(__dirname, '..', 'public', 'assets', 'maps', airport);
+    const folder = path.join(__dirname, 'assets', 'maps', airport);
 
     fs.readdir(folder, (err, files) => {
         if (err) return res.status(404).json({ error: `Airport not found, ${folder}` });

@@ -506,11 +506,30 @@ input {
     margin-left: 10px;
 }
 
+#fix-font-size {
+    margin-top: 5px;
+    width: 45px;
+    padding: 4px;
+    margin-left: 55px;
+}
+
+#fix-size {
+    margin-top: 5px;
+    width: 45px;
+    padding: 4px;
+    margin-left: 88px;
+    margin-bottom: 5px;
+}
+
 #bounds-check {
     margin-left: auto;
 }
 
 #min-tool {
+    margin-left: auto;
+}
+
+#fix-button {
     margin-left: auto;
 }
 

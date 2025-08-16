@@ -7,6 +7,7 @@ import AircraftIconMap from "../src/data/AircraftIconMap.js";
 import AircraftScaleMap from "../src/data/AircraftScaleMap.js";
 import GroundOffsets from "../src/data/GroundOffsets.js";
 import chartsLinkPath from "../src/data/ChartsLinkPath.js";
+import fixes from '../src/data/fixes.js';
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -27,6 +28,8 @@ const settingsButton = document.getElementById('settings-button');
 const airspaceBoundsCheck = document.getElementById('bounds-check');
 const fontSizeInput = document.getElementById('font-size-input');
 const fontSizeInputGround = document.getElementById('font-size-input-ground');
+const fixFontSizeInput = document.getElementById('fix-font-size');
+const fixSizeInput = document.getElementById('fix-size');
 
 //maps
 const airlineMap = new Map(Object.entries(AirlineMapJson));
@@ -39,9 +42,14 @@ const aircraftScaleMap = new Map(Object.entries(AircraftScaleMap));
 const groundOffsetsMap = new Map(Object.entries(GroundOffsets));
 const chartsLinkPathMap = new Map(Object.entries(chartsLinkPath));
 
+let fixSize = 12;
+
 //svg
 const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
 const onGroundSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane-inflight"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 11.085h5a2 2 0 1 1 0 4h-15l-3 -6h3l2 2h3l-2 -7h3l4 7z" /><path d="M3 21h18" /></svg>`;
+const fixSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${fixSize}" height="${fixSize}" fill="white" class="bi bi-triangle" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/></svg>`;
+const vortacSVG = `<svg fill="#ffffffff" width="${fixSize}" height="${fixSize}" viewBox="0 0 32 32" id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg"><defs><style>.cls-1 {fill: none;}</style></defs><circle cx="16" cy="14" r="2"/><path d="M29.8682,10.5039l-4-7a.9992.9992,0,0,0-1.3828-.3613L19.7231,6H12.2769L7.5146,3.1426a.9992.9992,0,0,0-1.3828.3613l-4,7a1,1,0,0,0,.3536,1.3535l4.7758,2.8657L11,21.2656V27a1,1,0,0,0,1,1h8a1,1,0,0,0,1-1V21.2656l3.7388-6.5425,4.7758-2.8657A1,1,0,0,0,29.8682,10.5039ZM18.8484,21H13.1516L8.5757,12.9922,11.4287,8h9.1426l2.853,4.9922Z" transform="translate(0 0)"/><rect id="_Transparent_Rectangle_" data-name="&lt;Transparent Rectangle&gt;" class="cls-1" width="32" height="32" transform="translate(32 32) rotate(-180)"/></svg>`;
+const vordmeSVG = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" width="${fixSize}" height="${fixSize}" viewBox="0 0 185.20833 158.75" version="1.1" id="svg1" xml:space="preserve"><defs id="defs1"></defs><g id="layer1" transform="translate(-5.9005295,-54.13221)"><g id="g1" transform="matrix(6.6145833,0,0,6.6145833,-7.3286368,27.673878)" style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.00006;stroke-dasharray:none;stroke-opacity:1"><circle cx="16" cy="16" r="2" id="circle1" style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.00006;stroke-dasharray:none;stroke-opacity:1"/><path class="cls-1" d="M 30,6 A 2.0023,2.0023 0 0 0 28,4 H 4 A 2.0023,2.0023 0 0 0 2,6 v 20 a 2.0023,2.0023 0 0 0 2,2 h 24 a 2.0023,2.0023 0 0 0 2,-2 z M 28,12.9258 22.9636,6 H 28 Z M 27.7637,16 20.491,26 H 11.509 L 4.2363,16 11.509,6 h 8.982 z M 9.0364,6 4,12.9248 V 6 Z M 4,19.0752 9.0364,26 H 4 Z M 22.9636,26 28.001,19.0737 28,26 Z" id="path1" style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.00006;stroke-dasharray:none;stroke-opacity:1"/></g></g></svg>`;
 
 //websocket localhost port
 const PORT = 4000;
@@ -65,6 +73,7 @@ let isMeasuring = false;
 let measuringline = null;
 let textStart = null;
 let textEnd = null;
+let fixFontSize = 8;
 
 let measuringLineStart = null;
 let textDistance = null;
@@ -211,6 +220,46 @@ function updateOverlay(id, info) {
                 </div>
     `;
     infoOverlay.querySelector('#plane-icon-container').innerHTML = icon;
+}
+
+
+
+function drawFixes() {
+    //delete existing
+    document.querySelectorAll('.fix-svg').forEach(el => el.remove());
+
+    const svg = document.getElementById('boundaries-svg');
+    let svgContent = '';
+
+    fixes.forEach(fix => {
+        // Translate coordinates
+        const x = fix.x / 33.3 + 10;
+        const y = fix.y / 33.3;
+
+        let icon;
+
+        if (fix.type == 'waypoint') {
+            icon = fixSVG;
+        } else if (fix.type == 'vortac') {
+            icon = vortacSVG;
+        } else if (fix.type == 'vordme') { 
+            icon = vordmeSVG;
+        }
+        
+
+        // Your custom SVG for a fix (as a string), using a <g> with transform
+        const customSVG = `
+            <g transform="translate(${x - fixSize}, ${y - fixSize})" class="fix-svg">
+                ${icon}
+                <text x="${2 * currentZoom}" y="${-2 * currentZoom}" fill="white" font-size="${fixFontSize}">${fix.identifier}</text>
+            </g>
+        `;
+
+        svgContent += customSVG;
+    });
+
+    // Assign all at once
+    svg.innerHTML += svgContent;
 }
 
 airportSelector.addEventListener('change', () => {
@@ -412,6 +461,21 @@ fontSizeInputGround.addEventListener('change', () => {
     });
 });
 
+fixFontSizeInput.addEventListener('change', () => {
+    fixFontSize = parseFloat(fixFontSizeInput.value)/10;
+    document.querySelectorAll('.fix-svg').forEach(el => {
+        el.querySelector('text').setAttribute('font-size', fixFontSize * currentZoom);
+    });
+});
+
+fixSizeInput.addEventListener('change', () => {
+    fixSize = parseFloat(fixSizeInput.value)/10;
+    document.querySelectorAll('.fix-svg').forEach(el => {
+        el.querySelector('svg').setAttribute('width', fixSize * currentZoom);
+        el.querySelector('svg').setAttribute('height', fixSize * currentZoom);
+    });
+});
+
 groundAircraftButton.addEventListener('click', () => {
     groundAircraftHidden = !groundAircraftHidden;
     document.querySelectorAll('.aircraft-group').forEach(group => {
@@ -512,6 +576,14 @@ document.getElementById('min-tool').addEventListener('click', () => {
     ` : 
     topBar.style.cssText = '';
 });
+
+document.getElementById('fix-button').addEventListener('click', () => {
+    if (document.getElementById('fix-button').checked) {
+        drawFixes();
+    } else {
+        document.querySelectorAll('.fix-svg').forEach(el => el.remove());
+    }    
+})
 
 document.getElementById('notepad-icon').addEventListener('click', () => {
     const overlay = document.getElementById('notepad-overlay');
@@ -2179,9 +2251,15 @@ function fetchMapLayer(container) {
 
                 planeIcons.forEach(child => {
                     child.setAttribute('r', parseFloat(child.getAttribute('r')) * delta);
-                });                
+                });
 
                 currentZoom *= delta;
+
+                document.querySelectorAll('.fix-svg').forEach(el => {
+                    el.querySelector('svg').setAttribute('width', fixSize * currentZoom);
+                    el.querySelector('svg').setAttribute('height', fixSize * currentZoom);
+                    el.querySelector('text').setAttribute('font-size', fixFontSize * currentZoom);
+                });
                 //console.log(currentZoom);
                 //console.log('x', viewBox.x, ' y', viewBox.y);
             });
