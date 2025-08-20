@@ -98,6 +98,7 @@ button {
     height: 100vh;
     width: auto;
     position: relative;
+    transition: 0.3s ease;
 }
 
 .sidebar-button {
@@ -136,7 +137,8 @@ svg {
     top: 3vh;
     left: 5vw;
     right: 5vw;
-    background: #222;
+    background: #22222280;
+    backdrop-filter: blur(5px);
     color: #fff;
     height: 60px;
     display: flex;
@@ -196,6 +198,7 @@ a {
     bottom: 10px;
     left: 10px;
     z-index: 2;
+    transition: 0.3s ease; 
 }
 
 #side-panel-content {
@@ -313,28 +316,36 @@ a {
     bottom: 20px;
     right: 50px;
     width: 200px;
-    display: none;
+    display: block;
     height: auto;
 }
 
 .overlay {
-    position: fixed;
-    display: none;
-    height: auto;
-    background: #222222;
-    border: 3px solid #333333;
-    outline: 5px solid #222222;
-    border-radius: 5px;
-    padding: 5px;
-    z-index: 100;
-    color: white;
+  position: fixed;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+  height: auto;
+
+  backdrop-filter: blur(10px);
+  border: 1px solid #33333380;
+  border-radius: 5px;
+  padding: 5px;
+  z-index: 100;
+  color: white;
+}
+
+.overlay.show {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .close-svg {
     width: 15px;
     height: 15px;
     position: absolute;
-    top: 2px;
+    top: 7px;
     right: 2px;
     cursor: pointer;
 }
@@ -474,7 +485,7 @@ a {
 }
 
 #settings-overlay {
-    display: none;
+    display: block;
     right: 50vw;
     bottom: 50vh;
     width: 200px;
@@ -541,7 +552,7 @@ input {
 #notepad-overlay {
     right: 5vw;
     bottom: 50vh;
-    display: none;
+    display: block;
     width: 200px;
 }
 
@@ -583,16 +594,11 @@ input {
     cursor: pointer;
 }
 
-#notepad-overlay > svg {
-    top: 7px;
-    right: 2px;
-}
-
 #departures-overlay {
     right: 20vw;
     top: 50vh;
     width: 450px;
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 5px;
 }
@@ -609,7 +615,7 @@ input {
 
 #departures-table th, 
 #departures-table td {
-    border: 1px solid #444;
+    border: 1px solid #222222;
     padding: 4px;
     vertical-align: middle;
 }
@@ -634,7 +640,7 @@ input {
     right: 20vw;
     top: 50vh;
     width: 300px;
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 5px;
 }
@@ -651,7 +657,7 @@ input {
 
 #arrivals-table th, 
 #arrivals-table td {
-    border: 1px solid #444;
+    border: 1px solid #222222;
     padding: 4px;
     vertical-align: middle;
 }
@@ -673,7 +679,7 @@ input {
 }
 
 #atis-overlay {
-    display: none;
+    display: flex;
     top: 200px;
     left: 400px;
     font-size: .7em;
@@ -799,7 +805,7 @@ input {
 #approach-overlay {
     right: 30vw;
     bottom: 50vh;
-    display: none;
+    display: flex;
     flex-direction: column;
     width: 100px;
     gap: 10px;
@@ -815,4 +821,15 @@ input {
     cursor: pointer;
     text-align: center;
     outline: none;
+}
+
+#changes-overlay {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    width: 350px;
+    height: 260px;
+    display: block;
 }

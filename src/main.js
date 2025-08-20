@@ -8,6 +8,7 @@ import AircraftScaleMap from "../src/data/AircraftScaleMap.js";
 import GroundOffsets from "../src/data/GroundOffsets.js";
 import chartsLinkPath from "../src/data/ChartsLinkPath.js";
 import fixes from '../src/data/fixes.js';
+import frequency from '../src/data/frequency.js';
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -41,6 +42,7 @@ const aircraftIconMap = new Map(Object.entries(AircraftIconMap));
 const aircraftScaleMap = new Map(Object.entries(AircraftScaleMap));
 const groundOffsetsMap = new Map(Object.entries(GroundOffsets));
 const chartsLinkPathMap = new Map(Object.entries(chartsLinkPath));
+const frequencyMap = new Map(Object.entries(frequency));
 
 let fixSize = 12;
 
@@ -86,13 +88,16 @@ const maxTrailLength = 15;
 
 window.addEventListener('load', function () {
     fetchMapLayer(container);
+});
+
+function runOnMapLoad() {
     loadAirportData(airportSelector);
     document.querySelectorAll('.overlay').forEach(el => {
         overlaySetup(el);
     });
     loadApproachList(airportSelector.value);
     fetchData();
-});
+}
 
 // Update time display every second
 function updateTime() {
@@ -155,18 +160,18 @@ function overlaySetup(overlay){
 
     closeButton.addEventListener('click', () => {
         curentAircraftId = null;
-        closeButton.parentElement.style.display = 'none';
+        closeButton.parentElement.classList.remove('show');
     });
 }
 
 function displayOverlay(id, info) {
     if (curentAircraftId == id) {
         curentAircraftId = null;
-        infoOverlay.style.display = 'none'
+        overlay.classList.remove('show');
         return;
     } else {
         curentAircraftId = id;
-        infoOverlay.style.display = 'block'
+        infoOverlay.classList.add('show');
     }
     updateOverlay(id, info)
 }
@@ -233,8 +238,8 @@ function drawFixes() {
 
     fixes.forEach(fix => {
         // Translate coordinates
-        const x = fix.x / 33.3 + 10;
-        const y = fix.y / 33.3;
+        const x = fix.x / 33.4 + 20;
+        const y = fix.y / 33.4 + 12;
 
         let icon;
 
@@ -349,8 +354,8 @@ function loadAirportData(airportSelector) {
 
     
     const stationCenter = stationMap.get(folder);
-    const stationType = 'CTR'; // add map for type
-
+    const stationType = frequencyMap.get(folder).CTR == null ? 'TWR' : 'CTR';
+    
     document.querySelector('#station-info').innerHTML = `${stationCenter}-${stationType}`
     /*
     document.querySelector('#station-info').innerHTML = `
@@ -559,7 +564,7 @@ sideButton2.addEventListener('click', () => {
 
 settingsButton.addEventListener('click', () => {
     const overlay = document.getElementById('settings-overlay');
-    overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
@@ -587,31 +592,31 @@ document.getElementById('fix-button').addEventListener('click', () => {
 
 document.getElementById('notepad-icon').addEventListener('click', () => {
     const overlay = document.getElementById('notepad-overlay');
-    overlay.style.display = overlay.style.display == 'block' ? 'none' : 'block';
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('departures-icon').addEventListener('click', () => {
     const overlay = document.getElementById('departures-overlay');
-    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('arrivals-icon').addEventListener('click', () => {
     const overlay = document.getElementById('arrivals-overlay');
-    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('atis-icon').addEventListener('click', () => {
     const overlay = document.getElementById('atis-overlay');
-    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
 document.getElementById('approach-button').addEventListener('click', () => {
     const overlay = document.getElementById('approach-overlay');
-    overlay.style.display = overlay.style.display == 'flex' ? 'none' : 'flex';
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
 
@@ -640,6 +645,8 @@ function generateATIS() {
     const sidsStars = document.getElementById('sidsStars').checked;
     const pdc = document.getElementById('pdc').checked;
     const notams = document.getElementById('notams').value;
+    const stationType = frequencyMap.get(airportSelector.value).CTR == null ? 'TWR' : 'CTR';
+    const freq = stationType == 'CTR' ? frequencyMap.get(airportSelector.value).CTR : frequencyMap.get(airportSelector.value).TWR
     
     const time = new Date().toISOString().slice(11,16).replace(':','') + 'z';
     
@@ -658,13 +665,12 @@ function generateATIS() {
     let sidsText = sidsStars ? "SIDs/STARs are preferred.\n" : "";
     let pdcText = pdc ? "PDC available.\n" : "";
 
-    const stationType = 'CTR';
     const chartsLink = charts == 'Offical' ? `https://github.com/Treelon/ptfs-charts/tree/main/${chartsLinkPathMap.get(airportSelector.value)}` : 'N/A';
     
     const atis =
-`∎ IRFD ATIS Information ${code} ${time} ∎
+`∎ ${airportSelector.value} ATIS Information ${code} ${time} ∎
 **―――――――――――――――**
-**Controller Callsign:** ${airportSelector.value}_${stationType}
+**Controller Callsign:** ${airportSelector.value}_${stationType} (${freq})
 **―――――――――――――――**
 **Aerodrome:**
 Max Taxi Speed: ${maxTaxi}kts
@@ -778,7 +784,9 @@ async function fetchData() {
         preserveFocusWhileUpdating(() => {
             updateDepartures(enrichedAircraftMap);
         });
-        updateArrivals(enrichedAircraftMap);
+        preserveFocusWhileUpdating(() => {
+            updateArrivals(enrichedAircraftMap);
+        });
         setWinds();
 
     } catch (error) {
@@ -908,6 +916,7 @@ function addDepartureRow(info, id) {
 
     // Create a new table row
     const newRow = document.createElement('tr');
+    newRow.id = id;
 
     columns.forEach(col => {
         const cell = document.createElement('td');
@@ -920,6 +929,7 @@ function addDepartureRow(info, id) {
             input.value = col.value;
             input.disabled = true;
             input.style.width = '100%';
+            input.autocomplete = 'off';
             cell.appendChild(input);
 
         } else if (col.type === 'checkbox') {
@@ -930,6 +940,7 @@ function addDepartureRow(info, id) {
             input.style.display = 'block';
             input.style.margin = '0 auto';
             cell.style.textAlign = 'center';
+            input.autocomplete = 'off';
             cell.appendChild(input);
 
              input.addEventListener('change', () => {
@@ -949,6 +960,7 @@ function addDepartureRow(info, id) {
             input.value = col.value || '';
             input.style.width = '100%';
             input.setAttribute('id', `cruise-input-${id}`)
+            input.autocomplete = 'off';
             cell.appendChild(input);
         } else {
             // Default text input
@@ -957,6 +969,7 @@ function addDepartureRow(info, id) {
             input.name = col.name;
             input.value = col.value || '';
             input.style.width = '100%';
+            input.autocomplete = 'off';
             cell.appendChild(input);
         }
 
@@ -1066,6 +1079,7 @@ function addArrivalsRow(info, id) {
 
     // Create a new table row
     const newRow = document.createElement('tr');
+    newRow.id = id;
 
     columns.forEach(col => {
         const cell = document.createElement('td');
@@ -1078,6 +1092,7 @@ function addArrivalsRow(info, id) {
             input.value = col.value;
             input.disabled = true;
             input.style.width = '100%';
+            input.autocomplete = 'off';
             cell.appendChild(input);
         } else {
             // Default text input
@@ -1086,6 +1101,7 @@ function addArrivalsRow(info, id) {
             input.name = col.name;
             input.value = col.value || '';
             input.style.width = '100%';
+            input.autocomplete = 'off';
             cell.appendChild(input);
         }
 
@@ -1096,24 +1112,30 @@ function addArrivalsRow(info, id) {
     arrivalsElements[id] = newRow;
 }
 
-function preserveFocusWhileUpdating(updateFunction) {
+function preserveFocusWhileUpdating(updateFunction) { //note
     const activeEl = document.activeElement;
-    if (!activeEl || !activeEl.name) {
+    console.log(activeEl.type);
+    if (!activeEl || !activeEl.name || activeEl.type != 'text') {
         // No focused input, just update normally
         updateFunction();
         return;
     }
 
     const inputName = activeEl.name;
+    const rowId = activeEl.parentElement.parentElement.id;
     const inputValue = activeEl.value;
     const selectionStart = activeEl.selectionStart;
     const selectionEnd = activeEl.selectionEnd;
 
     updateFunction();
-
-    const tableBody = document.querySelector('#departures-table tbody');
-    const inputs = tableBody.querySelectorAll(`input[name="${inputName}"]`);
-
+    
+    const tableBody = activeEl.parentElement.parentElement.parentElement;
+    const row = tableBody.querySelector(`#${rowId}`)
+    const input = row.querySelector(`input[name="${inputName}"]`);
+    if (input) {
+        input.focus();
+    }
+    /*
     let inputToFocus = null;
     for (const input of inputs) {
         if (input.value === inputValue) {
@@ -1127,7 +1149,7 @@ function preserveFocusWhileUpdating(updateFunction) {
         if (selectionStart !== null && selectionEnd !== null) {
             inputToFocus.setSelectionRange(selectionStart, selectionEnd);
         }
-    }
+    }*/
 }
 
 function addAirportChart(container) {
@@ -1563,6 +1585,7 @@ function updateAircraftLayer(data) {
             document.addEventListener('mousemove', e => {
                 if (isDraggingLabel.bool == true) labelMove(e, label, svg, group, start);
                 if (isMeasuring == true) {
+                    
                     const pt = svg.createSVGPoint();
                     pt.x = e.clientX;
                     pt.y = e.clientY;
@@ -2137,7 +2160,6 @@ function fetchMapLayer(container) {
             //measuring tool
             svg.addEventListener('dblclick', (e) => {
                 if (e.target.getAttribute('id') === 'tspan1' || e.target.getAttribute('id') === 'tspan2' || e.target.getAttribute('id') === 'tspan3') return;
-
                 const pt = svg.createSVGPoint();
                 pt.x = e.clientX;
                 pt.y = e.clientY;
@@ -2263,29 +2285,30 @@ function fetchMapLayer(container) {
                 //console.log(currentZoom);
                 //console.log('x', viewBox.x, ' y', viewBox.y);
             });
-        })
-        .catch(err => {
-            console.error(err);
-            container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
-        });
 
-    //fetch boundaries SVG
-    fetch('public/assets/boundaries.svg')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to load SVG: ' + response.status);
-            }
-            return response.text();
-        })
-        .then(async boundariesText => {
-            const svg = document.getElementById('map-svg')
-            svg.innerHTML += boundariesText;
+            //fetch boundaries SVG
+            fetch('public/assets/boundaries.svg')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load SVG: ' + response.status);
+                    }
+                    return response.text();
+                })
+                .then(async boundariesText => {
+                    const svg = document.getElementById('map-svg')
+                    svg.innerHTML += boundariesText;
 
-            const boundaries = svg.querySelector('svg');
-            if (!boundaries) throw new Error('No <svg> element found in file');
+                    const boundaries = svg.querySelector('svg');
+                    if (!boundaries) throw new Error('No <svg> element found in file');
 
-            boundaries.setAttribute('id', 'boundaries-svg');
+                    boundaries.setAttribute('id', 'boundaries-svg');
 
+                    runOnMapLoad();
+                })
+                .catch(err => {
+                    console.error(err);
+                    container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
+                });
         })
         .catch(err => {
             console.error(err);
