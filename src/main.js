@@ -233,7 +233,7 @@ function drawFixes() {
     //delete existing
     document.querySelectorAll('.fix-svg').forEach(el => el.remove());
 
-    const svg = document.getElementById('boundaries-svg');
+    const svg = document.getElementById('map-svg');
     let svgContent = '';
 
     fixes.forEach(fix => {
@@ -250,13 +250,11 @@ function drawFixes() {
         } else if (fix.type == 'vordme') { 
             icon = vordmeSVG;
         }
-        
-
         // Your custom SVG for a fix (as a string), using a <g> with transform
         const customSVG = `
             <g transform="translate(${x - fixSize}, ${y - fixSize})" class="fix-svg">
                 ${icon}
-                <text x="${2 * currentZoom}" y="${-2 * currentZoom}" fill="white" font-size="${fixFontSize}">${fix.identifier}</text>
+                <text x="${2 * currentZoom}" y="${-2 * currentZoom}" fill="white" font-size="${fixFontSize * currentZoom}">${fix.identifier}</text>
             </g>
         `;
 
@@ -265,9 +263,20 @@ function drawFixes() {
 
     // Assign all at once
     svg.innerHTML += svgContent;
+
+    fixSize = parseFloat(fixSizeInput.value)/10;
+    document.querySelectorAll('.fix-svg').forEach(el => {
+        el.querySelector('svg').setAttribute('width', fixSize * currentZoom);
+        el.querySelector('svg').setAttribute('height', fixSize * currentZoom);
+    });
 }
 
 airportSelector.addEventListener('change', () => {
+    document.getElementById('airport-dropdown-app').value = airportSelector.value
+    updateAirportSelector();
+});
+
+function updateAirportSelector() {
     loadAirportData(airportSelector);
     groundAircraftElements = {};
     document.querySelectorAll('#ground-container').forEach(cont => {
@@ -283,12 +292,12 @@ airportSelector.addEventListener('change', () => {
     updateDepartures(aircraftData);
     generateATIS();
     loadApproachList(airportSelector.value);
-    document.getElementById('airport-dropdown-app').value = airportSelector.value
-});
+}
 
 document.getElementById('airport-dropdown-app').addEventListener('change', () => {
     loadApproachList(document.getElementById('airport-dropdown-app').value);
     airportSelector.value = document.getElementById('airport-dropdown-app').value
+    updateAirportSelector()
 });
 
 function loadAirportData(airportSelector) {
@@ -580,6 +589,14 @@ document.getElementById('min-tool').addEventListener('click', () => {
         font-size: .7em;
     ` : 
     topBar.style.cssText = '';
+
+    const backButton = document.getElementById('side-window-1').querySelector('.back-button');
+    console.log(backButton);
+    if (document.getElementById('min-tool').checked && backButton) {
+        backButton.style.top = '50px';
+    } else if (backButton) {
+        backButton.style.top = '10px';
+    }
 });
 
 document.getElementById('fix-button').addEventListener('click', () => {
@@ -723,7 +740,10 @@ window.addEventListener('load', function () {
             const backButton = document.createElement('button');
             backButton.setAttribute('id', 'side-panel-back');
             backButton.classList.add('back-button');
-            backButton.innerHTML = '↩'
+            if (document.getElementById('min-tool').checked && container.id === 'side-window-1') {
+                backButton.style.top = '50px';
+            }
+            backButton.innerHTML = '↩';
             container.appendChild(backButton);
 
             backButton.addEventListener('click', () => {
@@ -757,7 +777,6 @@ function loadGroundDisplay(cont) {
     groundView.setAttribute('id', 'ground-container')
     cont.appendChild(groundView);
     fetchMapLayerGround(groundView);
-    loadGroundChartSVG(airportSelector, groundView);
     setTimeout(() => {
         if (aircraftData != null) {
             updateGroundAircraftLayer(aircraftData, groundView);
@@ -1114,7 +1133,6 @@ function addArrivalsRow(info, id) {
 
 function preserveFocusWhileUpdating(updateFunction) { //note
     const activeEl = document.activeElement;
-    console.log(activeEl.type);
     if (!activeEl || !activeEl.name || activeEl.type != 'text') {
         // No focused input, just update normally
         updateFunction();
@@ -2097,6 +2115,8 @@ function fetchMapLayerGround(container) {
                 });
 
             });
+
+            loadGroundChartSVG(airportSelector, container);
         })
         .catch(err => {
             console.error(err);
