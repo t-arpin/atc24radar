@@ -833,3 +833,14 @@ input {
     height: 205px;
     display: block;
 }
+
+#dowtime-overlay {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    width: 350px;
+    height: 135px;
+    display: block;
+}
