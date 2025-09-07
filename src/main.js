@@ -233,7 +233,7 @@ function drawFixes() {
     //delete existing
     document.querySelectorAll('.fix-svg').forEach(el => el.remove());
 
-    const svg = document.getElementById('map-svg');
+    const svg = document.getElementById('fix-container');
     let svgContent = '';
 
     fixes.forEach(fix => {
@@ -2329,6 +2329,10 @@ function fetchMapLayer(container) {
                     console.error(err);
                     container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
                 });
+            //add fix layer
+            const fixLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            fixLayer.setAttribute('id', 'fix-container');
+            svg.appendChild(fixLayer);
         })
         .catch(err => {
             console.error(err);
