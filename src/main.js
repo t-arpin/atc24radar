@@ -2,13 +2,11 @@ import AirlineMapJson from "../src/data/AirlineMap.js";
 import AcftTypeMapJson from "../src/data/AcftTypeMap.js";
 import CallsignMapJson from "../src/data/CallsignMap.js";
 import StationMap from "../src/data/StationMap.js";
-import AirportNamesMap from "../src/data/AirportNamesMap.js";
 import AircraftIconMap from "../src/data/AircraftIconMap.js";
 import AircraftScaleMap from "../src/data/AircraftScaleMap.js";
 import GroundOffsets from "../src/data/GroundOffsets.js";
-import chartsLinkPath from "../src/data/ChartsLinkPath.js";
 import fixes from '../src/data/fixes.js';
-import frequency from '../src/data/frequency.js';
+import airportInfo from '../src/data/AirportInfo.js';
 
 //html elements
 const container = document.getElementById('svg-container');
@@ -37,16 +35,12 @@ const airlineMap = new Map(Object.entries(AirlineMapJson));
 const acftTypeMap = new Map(Object.entries(AcftTypeMapJson));
 const callsignMap = new Map(Object.entries(CallsignMapJson));
 const stationMap = new Map(Object.entries(StationMap));
-const airportNamesMap = new Map(Object.entries(AirportNamesMap));
 const aircraftIconMap = new Map(Object.entries(AircraftIconMap));
 const aircraftScaleMap = new Map(Object.entries(AircraftScaleMap));
 const groundOffsetsMap = new Map(Object.entries(GroundOffsets));
-const chartsLinkPathMap = new Map(Object.entries(chartsLinkPath));
-const frequencyMap = new Map(Object.entries(frequency));
-
-let fixSize = 12;
 
 //svg
+let fixSize = 12;
 const inFlightSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" /></svg>`;
 const onGroundSVG = `<svg  id="plane-icon" xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plane-inflight"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 11.085h5a2 2 0 1 1 0 4h-15l-3 -6h3l2 2h3l-2 -7h3l4 7z" /><path d="M3 21h18" /></svg>`;
 const fixSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${fixSize}" height="${fixSize}" fill="white" class="bi bi-triangle" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/></svg>`;
@@ -76,7 +70,7 @@ let measuringline = null;
 let textStart = null;
 let textEnd = null;
 let fixFontSize = 8;
-
+let currentAtisCode = "Atis Error";
 let measuringLineStart = null;
 let textDistance = null;
 let previousChartTransform = null;
@@ -88,6 +82,7 @@ const maxTrailLength = 15;
 
 window.addEventListener('load', function () {
     fetchMapLayer(container);
+    atisLetter(airportSelector.value);
 });
 
 function runOnMapLoad() {
@@ -187,11 +182,11 @@ function updateOverlay(id, info) {
         infoOverlay.querySelector('#route-container').innerHTML = `
             <div id="departure" class="route">
                 ${fp.departing}
-                <span class="airport-name">${airportNamesMap.get(fp.departing)}</span>
+                <span class="airport-name">${airportInfo[fp.departing].name}</span>
             </div>
-            <div id="arival" class="route">
+            <div id="arrival" class="route">
                 ${fp.arriving}
-                <span class="airport-name">${airportNamesMap.get(fp.arriving)}</span>
+                <span class="airport-name">${airportInfo[fp.arriving].name}</span>
             </div>
             <div id="plane-icon-container"></div>`;
 
@@ -273,7 +268,7 @@ function drawFixes() {
 
 airportSelector.addEventListener('change', () => {
     document.getElementById('airport-dropdown-app').value = airportSelector.value
-    updateAirportSelector();
+    fetchAtisLetter(airportSelector.value);
 });
 
 function updateAirportSelector() {
@@ -363,9 +358,8 @@ function loadAirportData(airportSelector) {
 
     
     const stationCenter = stationMap.get(folder);
-    const stationType = frequencyMap.get(folder).CTR == null ? 'TWR' : 'CTR';
-    
-    document.querySelector('#station-info').innerHTML = `${stationCenter}-${stationType}`
+    const stationType = airportInfo[folder].frequency.CTR == null ? 'TWR' : 'CTR';
+    document.querySelector('#station-info').innerHTML = `${stationCenter}-${stationType} (${currentAtisCode})`
     /*
     document.querySelector('#station-info').innerHTML = `
         ${stationCenter}-${stationType}
@@ -629,6 +623,7 @@ document.getElementById('atis-icon').addEventListener('click', () => {
     const overlay = document.getElementById('atis-overlay');
     overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
+    generateATIS();
 });
 
 document.getElementById('approach-button').addEventListener('click', () => {
@@ -636,6 +631,239 @@ document.getElementById('approach-button').addEventListener('click', () => {
     overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
 });
+
+document.getElementById('vector-icon').addEventListener('click', () => {
+    const overlay = document.getElementById('vector-overlay');
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
+    overlay.style.zIndex = getHighestZIndex() + 1;
+});
+
+//vectoring stuff
+let hoveredVector = null;
+const vectorStart = document.getElementById('vector-start');
+const vectorClear = document.getElementById('vector-clear');
+const vectorColor = document.getElementById('vector-color');
+const vectorDistance = document.getElementById('vector-distance');
+const vectorDirOnly = document.getElementById('vector-direction-only');
+
+let doVectorDelete = true;
+
+vectorStart.addEventListener('click', () => {
+    vectorStart.innerHTML = vectorStart.innerHTML == 'Start' ? 'Stop' : 'Start';
+    doVectorDelete = doVectorDelete ? false : true;
+});
+
+vectorClear.addEventListener('click', () => {
+    document.getElementById('vector-container').innerHTML = '';
+    isMeasuring = false;
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete') {
+        if (hoveredVector) {
+            hoveredVector.remove();
+            hoveredVector = null; 
+        }
+
+        if (isMeasuring) {
+            document.getElementById('vector-container').querySelector('.vector')?.remove();
+            isMeasuring = false;
+        }
+    }
+    if (e.key === 'Escape') {
+        if (isMeasuring) {
+            document.getElementById('vector-container').querySelector('.vector')?.remove();
+            isMeasuring = false;
+        }
+    }
+});
+
+//saving and loading vectors
+function extractVectorData() {
+    const svg = document.getElementById("vector-container");
+    if (!svg.innerHTML) {
+        alert('No vectors to export'); 
+        return;
+    }
+    const vectors = svg.querySelectorAll('.vector');
+    const vectorData = [];
+
+    vectors.forEach((vector) => {
+        const color = vector.getAttribute('color');
+        const distanceDisplayed = vector.getAttribute('distance') === 'true';
+        const dirOnly = vector.getAttribute('dirOnly') === 'true';
+        
+        const line = vector.querySelector('line');
+        const factor = parseFloat(line.getAttribute('factor'));
+        const x1 = parseFloat(line.getAttribute('x1'));
+        const y1 = parseFloat(line.getAttribute('y1'));
+        const x2 = parseFloat(line.getAttribute('x2'));
+        const y2 = parseFloat(line.getAttribute('y2'));
+
+        vectorData.push({
+            color,
+            distance_displayed: distanceDisplayed,
+            dirOnly: dirOnly,
+            factor: factor,
+            coordinates: { x1, y1, x2, y2 }
+        });
+    });
+
+    return vectorData;
+}
+
+document.getElementById('vector-export').addEventListener('click', () => {
+    const vectorData = extractVectorData();
+    if (!vectorData) return;
+    const fileName = prompt("Enter the file name (without extension):", "vector_data");
+      if (fileName) {
+        const blob = new Blob([JSON.stringify(vectorData, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileName}.json`;  // Use the user-specified file name
+        link.click();
+      } else {
+        alert("Export cancelled. No file name provided.");
+      }
+});
+
+document.getElementById('vector-import').addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    // When a file is selected, read it
+    input.onchange = function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const vectorData = JSON.parse(e.target.result);
+                console.log('Imported Data:', vectorData);
+                createVectorElement(vectorData);
+            };
+            reader.readAsText(file);
+        }
+    };
+    input.click();
+});
+
+function createVectorElement(vectorData) {
+    vectorData.forEach(data => {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('class', 'vector');
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", data.coordinates.x1);
+        line.setAttribute("y1", data.coordinates.y1);
+        line.setAttribute("x2", data.coordinates.x2);
+        line.setAttribute("y2", data.coordinates.y2);
+        line.setAttribute("stroke", data.color);
+        group.setAttribute("color", data.color);
+        line.setAttribute("stroke-width", 1 * currentZoom);
+        line.setAttribute("id", "measuringline");
+        line.setAttribute("factor", data.factor);
+
+        const start = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        start.setAttribute("fill", "white");
+        start.setAttribute("font-size", 12 * currentZoom);
+        start.setAttribute("text-anchor", "middle");
+        start.setAttribute("id", "textStart");
+
+        const end = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        end.setAttribute("fill", "white");
+        end.setAttribute("font-size", 12 * currentZoom);
+        end.setAttribute("text-anchor", "middle");
+        end.setAttribute("id", "textEnd");
+
+        const dx = data.coordinates.x2 - data.coordinates.x1;
+        const dy = data.coordinates.y2 - data.coordinates.y1;
+        const heading = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+        const oppositeHeading = (heading + 180) % 360;
+        let distance = null;
+
+        distance = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        distance.setAttribute("fill", "white");
+        distance.setAttribute("font-size", 12 * currentZoom);
+        distance.setAttribute("text-anchor", "middle");
+
+        if (!data.dirOnly) {
+            start.textContent = `${Math.round(heading)}°`;
+            end.textContent = `${Math.round(oppositeHeading)}°`;
+            group.setAttribute('dirOnly', false);
+
+            if (data.distance_displayed) {
+                const distPx = Math.sqrt(dx * dx + dy * dy);
+                const distStuds = distPx * 100; // 100 studs per px
+                const distNM = distStuds / 3307.14286;
+                distance.textContent = `${distNM.toFixed(2)} NM`;
+                group.setAttribute("distance", "true");
+            } else {
+                distance = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                distance.setAttribute("display", "none");
+                group.setAttribute("distance", "false");
+            }
+        } else {
+            distance.textContent = `${Math.round(heading)}`;
+            group.setAttribute("dirOnly", true);
+        }
+            
+
+        distance.setAttribute("x", (data.coordinates.x1 + data.coordinates.x2) / 2);
+        distance.setAttribute("y", (data.coordinates.y1 + data.coordinates.y2) / 2);
+        distance.setAttribute("font-size", 12 * currentZoom);
+
+        document.addEventListener('wheel', () => {
+            group.querySelector("line").setAttribute("stroke-width", 1 * currentZoom);
+            group.querySelectorAll("text").forEach(text => {
+                text.setAttribute("font-size", 12 * currentZoom);
+            });
+
+            const measuringline = group.querySelector("#measuringline");
+            const textStart = group.querySelector("#textStart");
+            textStart.setAttribute("x", parseFloat(measuringline.getAttribute("x1")) - (20 * data.factor) * currentZoom);
+            textStart.setAttribute("y", parseFloat(measuringline.getAttribute("y1")) + 4 * currentZoom);
+
+            const textEnd = group.querySelector("#textEnd");
+            textEnd.setAttribute("x", parseFloat(measuringline.getAttribute("x2")) + (20 * data.factor) * currentZoom);
+            textEnd.setAttribute("y", parseFloat(measuringline.getAttribute("y2")) + 4 * currentZoom);
+        });
+
+        group.addEventListener('mouseover', () => {
+            hoveredVector = group;
+        });
+
+        // Track mouseout to clear the current hovered element
+        group.addEventListener('mouseout', () => {
+            if (hoveredVector === group) {
+                hoveredVector = null;
+            }
+        });
+
+        group.appendChild(line);
+        group.appendChild(start);
+        group.appendChild(end);
+        group.appendChild(distance);
+
+        group.querySelector("line").setAttribute("stroke-width", 1 * currentZoom);
+        group.querySelectorAll("text").forEach(text => {
+            text.setAttribute("font-size", 12 * currentZoom);
+        });
+
+        const measuringline = group.querySelector("#measuringline");
+        const textStart = group.querySelector("#textStart");
+        console.log(parseFloat(measuringline.getAttribute("x1")) - (20 * parseFloat(data.factor) * currentZoom));
+        textStart.setAttribute("x", parseFloat(measuringline.getAttribute("x1")) - (20 * parseFloat(data.factor) * currentZoom));
+        textStart.setAttribute("y", parseFloat(measuringline.getAttribute("y1")) + 4 * currentZoom);
+
+        const textEnd = group.querySelector("#textEnd");
+        textEnd.setAttribute("x", parseFloat(measuringline.getAttribute("x2")) + (20 * parseFloat(data.factor) * currentZoom));
+        textEnd.setAttribute("y", parseFloat(measuringline.getAttribute("y2")) + 4 * currentZoom);
+
+        document.getElementById('vector-container').insertAdjacentElement("afterbegin", group);
+    });
+}
+
 
 //atis stuff
 document.getElementById('atis-gen-button').addEventListener('click', () => {
@@ -649,71 +877,41 @@ document.getElementById('atis-overlay').querySelectorAll('input, select, textare
 });
 
 function generateATIS() {
-    const code = document.getElementById('atisCode').value;
-    const maxTaxi = document.getElementById('maxTaxi').value;
+    const nextLetter = letter => String.fromCharCode((letter.charCodeAt(0) - 65 + 1) % 26 + 65);
+    const code = nextLetter(currentAtisCode);
     const qnh = document.getElementById('qnh').value;
-    const parking = document.getElementById('parking').checked;
-    const acTypeGround = document.getElementById('acTypeGround').checked;
-    const airACType = document.getElementById('airACType').checked;
-    const airAltitude = document.getElementById('airAltitude').checked;
-    const airAirspeed = document.getElementById('airAirspeed').checked;
-    const airHeading = document.getElementById('airHeading').checked;
     const charts = document.getElementById('charts').value;
-    const sidsStars = document.getElementById('sidsStars').checked;
-    const pdc = document.getElementById('pdc').checked;
-    const notams = document.getElementById('notams').value;
-    const stationType = frequencyMap.get(airportSelector.value).CTR == null ? 'TWR' : 'CTR';
-    const freq = stationType == 'CTR' ? frequencyMap.get(airportSelector.value).CTR : frequencyMap.get(airportSelector.value).TWR
+    const depRwys = document.getElementById('depRwy').value;
+    const arrRwys = document.getElementById('arrRwy').value;
     
     const time = new Date().toISOString().slice(11,16).replace(':','') + 'z';
-    
-    let groundText = "Ground Acft Advise Receipt of Information " + code;
-    if (parking) groundText += ", Stand Number on Initial Contact";
-    if (acTypeGround) groundText += ", Aircraft Type";
-    groundText += ".";
-    
-    let airText = "Airborne Acft Advise Receipt of Information " + code;
-    if (airACType) airText += ", Aircraft Type";
-    if (airAltitude) airText += ", Altitude";
-    if (airAirspeed) airText += ", Airspeed";
-    if (airHeading) airText += ", Heading";
-    airText += " on Initial Contact.";
-    
-    let sidsText = sidsStars ? "SIDs/STARs are preferred.\n" : "";
-    let pdcText = pdc ? "PDC available.\n" : "";
 
-    const chartsLink = charts == 'Offical' ? `https://github.com/Treelon/ptfs-charts/tree/main/${chartsLinkPathMap.get(airportSelector.value)}` : 'N/A';
-    
+    const windParts = Object.values(aircraftData)[0]?.wind.split("/");
+    const dir = windParts[0].padStart(3, '0');
+    const speed = windParts[1].padStart(2, '0');
+
+    const chartsLink = charts == 'Offical' ? `https://github.com/Treelon/ptfs-charts/tree/main/${airportInfo[airportSelector.value].ChartsLinkPath}` : '';
+
     const atis =
-`∎ ${airportSelector.value} ATIS Information ${code} ${time} ∎
-**―――――――――――――――**
-**Controller Callsign:** ${airportSelector.value}_${stationType} (${freq})
-**―――――――――――――――**
-**Aerodrome:**
-Max Taxi Speed: ${maxTaxi}kts
-Arrival Runway(s):
-Departure Runway(s):
-Max Acft Size: N/A
-QNH: ${qnh}
+    `${airportSelector.value} ATIS INFO ${code} TIME ${time}
+DEP RWY ${depRwys} ARR RWY ${arrRwys}
+${dir}/${speed} 9999 OVC045 00/06 Q${qnh}
+ACKNOWLEDGE RECEIPT OF INFORMATION ${code}
+AND ADVISE AFCT TYPE ON FIRST CONTACT WITH ${airportInfo[airportSelector.value].name.toUpperCase()}
+END OF INFORMATION ${code}
 
-**NOTAMS:**
-${groundText}
-${airText}
-VFR Acft say Direction of Flight and Intentions.
-${notams ? notams + "\n" : ""}${sidsText}${pdcText}
-**Charts:**
-Chart Pack Author: ${charts}
-Chart Pack Link: <${chartsLink}>
-**―――――――――――――――**
-∎ End of ATIS Information ${code} ∎`;
+Charts Link: ${chartsLink}`;
+
+    const command = `/updateatis airport: ${airportSelector.value} arr_rwys: ${arrRwys} dep_rwys: ${depRwys} qnh: ${qnh} chart_link: ${chartsLink}`;
 
     document.getElementById('output').textContent = atis;
+    document.getElementById('output').setAttribute('command', command);
 }
 
 function copyATIS() {
-    const text = document.getElementById('output').textContent;
+    const text = document.getElementById('output').getAttribute('command');
     navigator.clipboard.writeText(text).then(() => {
-        document.getElementById('copied-text').innerHTML = 'ATIS message copied';
+        document.getElementById('copied-text').innerHTML = 'ATIS command copied';
     });
 }
 
@@ -723,7 +921,6 @@ function setWinds() {
     const speed = windParts[1].padStart(2, '0')
     document.getElementById('wind-container').innerHTML = `W: ${dir}/${speed}`; 
 }
-
 
 window.addEventListener('load', function () {
     const sideButtons = document.querySelectorAll('.sidebar-button');
@@ -851,6 +1048,31 @@ async function loadApproachList(icao) {
     });
 }
 
+async function atisLetter(icao) {
+    try {
+        const response = await fetch(`http${secureProtocol}://${serverAddress}/atis/${icao}`);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const data = await response.json();
+        if (!data.letter) throw new Error("No ATIS letter found in response");
+        if (currentAtisCode == data.letter) {
+            return currentAtisCode;
+        } else {
+            console.log(`ATIS letter updated: ${currentAtisCode} -> ${data.letter}`);
+            currentAtisCode = data.letter;
+            document.querySelector('#station-info').innerHTML = `${stationMap.get(data.airport)}-${airportInfo[data.airport].frequency.CTR == null ? 'TWR' : 'CTR'} (${currentAtisCode})`
+            return data.letter;
+        }
+    } catch (err) {
+        console.error('Error fetching ATIS letter:', err);
+        return "Atis Error";
+    }
+}
+
+async function fetchAtisLetter(icao) {
+    const currentAtisLetter = await atisLetter(icao);
+    currentAtisCode = currentAtisLetter;
+    updateAirportSelector();
+}
 
 let departuresElements = {};
 let departuresTimestamps = {};
@@ -1917,22 +2139,34 @@ function updateMeasuringTool(x, y) {
     const oppositeHeading = (heading + 180) % 360;
 
     const factor = dx > 0 ? 1 : -1;
+    measuringline.setAttribute('factor', factor);
 
-    textStart.textContent = `${Math.round(heading)}°`;
-    textStart.setAttribute("x", measuringLineStart.x - (20 * factor) * currentZoom);
-    textStart.setAttribute("y", measuringLineStart.y + 4 * currentZoom);
-    textStart.setAttribute("font-size", 12 * currentZoom);
+    if (!vectorDirOnly.checked) {
+        textStart.textContent = `${Math.round(heading)}°`;
+        textStart.setAttribute("x", measuringLineStart.x - (20 * factor) * currentZoom);
+        textStart.setAttribute("y", measuringLineStart.y + 4 * currentZoom);
+        textStart.setAttribute("font-size", 12 * currentZoom);
 
-    textEnd.textContent = `${Math.round(oppositeHeading)}°`;
-    textEnd.setAttribute("x", x + (20 * factor) * currentZoom);
-    textEnd.setAttribute("y", y + 4 * currentZoom);
-    textEnd.setAttribute("font-size", 12 * currentZoom);
+        textEnd.textContent = `${Math.round(oppositeHeading)}°`;
+        textEnd.setAttribute("x", x + (20 * factor) * currentZoom);
+        textEnd.setAttribute("y", y + 4 * currentZoom);
+        textEnd.setAttribute("font-size", 12 * currentZoom);
 
-    // Distance in px, then convert to NM
-    const distPx = Math.sqrt(dx * dx + dy * dy);
-    const distStuds = distPx * 100; // 100 studs per px
-    const distNM = distStuds / 3307.14286;
-    textDistance.textContent = `${distNM.toFixed(2)} NM`;
+        if (vectorDistance.checked) {
+            // Distance in px, then convert to NM
+            const distPx = Math.sqrt(dx * dx + dy * dy);
+            const distStuds = distPx * 100; // 100 studs per px
+            const distNM = distStuds / 3307.14286;
+            textDistance.textContent = `${distNM.toFixed(2)} NM`;
+        } else {
+            textDistance.textContent = '';
+        }
+    } else {
+        textDistance.textContent = `${Math.round(heading)}°`;
+        textStart.textContent = '';
+        textEnd.textContent = '';
+    }
+    
     textDistance.setAttribute("x", (measuringLineStart.x + x) / 2);
     textDistance.setAttribute("y", (measuringLineStart.y + y) / 2);
     textDistance.setAttribute("font-size", 12 * currentZoom);
@@ -2188,6 +2422,9 @@ function fetchMapLayer(container) {
                 const y = svgP.y;
 
                 if (!isMeasuring) {
+                    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    group.setAttribute('class', 'vector');
+
                     measuringLineStart = { x, y };
 
                     measuringline = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -2195,36 +2432,77 @@ function fetchMapLayer(container) {
                     measuringline.setAttribute("y1", y);
                     measuringline.setAttribute("x2", x);
                     measuringline.setAttribute("y2", y);
-                    measuringline.setAttribute("stroke", "yellow");
+                    measuringline.setAttribute("stroke", vectorColor.value);
+                    group.setAttribute("color", vectorColor.value);
                     measuringline.setAttribute("stroke-width", "1");
+                    measuringline.setAttribute("id", "measuringline");
 
                     textStart = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     textStart.setAttribute("fill", "white");
                     textStart.setAttribute("font-size", "12px");
                     textStart.setAttribute("text-anchor", "middle");
+                    textStart.setAttribute("id", "textStart");
 
                     textEnd = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     textEnd.setAttribute("fill", "white");
                     textEnd.setAttribute("font-size", "12px");
                     textEnd.setAttribute("text-anchor", "middle");
+                    textEnd.setAttribute("id", "textEnd");
 
                     textDistance = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     textDistance.setAttribute("fill", "white");
                     textDistance.setAttribute("font-size", "12px");
                     textDistance.setAttribute("text-anchor", "middle");
 
-                    svg.appendChild(measuringline);
-                    svg.appendChild(textStart);
-                    svg.appendChild(textEnd);
-                    svg.appendChild(textDistance);
+                    const distanceOn = vectorDistance.checked ? 'true' : 'false';
+                    group.setAttribute('distance', distanceOn);
 
+                    if (vectorDirOnly.checked) {
+                        group.setAttribute('distance', false);
+                        group.setAttribute('dirOnly', true);
+                    } else {
+                        group.setAttribute('dirOnly', false);
+                    }
+
+                    document.addEventListener('wheel', () => {
+                        group.querySelector("line").setAttribute("stroke-width", 1 * currentZoom);
+                        group.querySelectorAll("text").forEach(text => {
+                            text.setAttribute("font-size", 12 * currentZoom);
+                        });
+
+                        const measuringline = group.querySelector("#measuringline");
+                        const textStart = group.querySelector("#textStart");
+                        textStart.setAttribute("x", parseFloat(measuringline.getAttribute("x1")) - (20 * parseFloat(measuringline.getAttribute('factor'))) * currentZoom);
+                        textStart.setAttribute("y", parseFloat(measuringline.getAttribute("y1")) + 4 * currentZoom);
+
+                        const textEnd = group.querySelector("#textEnd");
+                        textEnd.setAttribute("x", parseFloat(measuringline.getAttribute("x2")) + (20 * parseFloat(measuringline.getAttribute('factor'))) * currentZoom);
+                        textEnd.setAttribute("y", parseFloat(measuringline.getAttribute("y2")) + 4 * currentZoom);
+                    });
+
+                    group.addEventListener('mouseover', () => {
+                        hoveredVector = group;
+                    });
+
+                    // Track mouseout to clear the current hovered element
+                    group.addEventListener('mouseout', () => {
+                        if (hoveredVector === group) {
+                            hoveredVector = null;
+                        }
+                    });
+
+                    group.appendChild(measuringline);
+                    group.appendChild(textStart);
+                    group.appendChild(textEnd);
+                    group.appendChild(textDistance);
+
+                    document.getElementById('vector-container').insertAdjacentElement("afterbegin", group);
                     isMeasuring = true;
                 } else {
                     // Clear all elements and reset state
-                    svg.removeChild(measuringline);
-                    svg.removeChild(textStart);
-                    svg.removeChild(textEnd);
-                    svg.removeChild(textDistance);
+                    if (doVectorDelete) {
+                        document.getElementById('vector-container').querySelector('.vector').remove();
+                    }
                     measuringline = textStart = textEnd = null;
                     measuringLineStart = null;
                     isMeasuring = false;
@@ -2324,15 +2602,21 @@ function fetchMapLayer(container) {
                     boundaries.setAttribute('id', 'boundaries-svg');
 
                     runOnMapLoad();
+
+                    //add vector layer
+                    const vectorLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    vectorLayer.setAttribute('id', 'vector-container');
+                    svg.appendChild(vectorLayer);
+
+                    //add fix layer
+                    const fixLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    fixLayer.setAttribute('id', 'fix-container');
+                    svg.appendChild(fixLayer);
                 })
                 .catch(err => {
                     console.error(err);
                     container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
-                });
-            //add fix layer
-            const fixLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            fixLayer.setAttribute('id', 'fix-container');
-            svg.appendChild(fixLayer);
+                })
         })
         .catch(err => {
             console.error(err);

@@ -79,6 +79,45 @@ app.get('/approaches/:icao', (req, res) => {
     });
 });
 
+const atisCache = {};
+
+async function updateAtisData() {
+  try {
+    const response = await fetch('https://24data.ptfs.app/atis'); // Replace with actual URL
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const atisList = await response.json();
+
+    // Update in-memory ATIS letter cache
+    for (const entry of atisList) {
+      atisCache[entry.airport] = entry.letter;
+
+      const previousLetter = atisCache[entry.airport];
+      if (previousLetter !== entry.letter) {
+        // Letter changed — update cache and broadcast
+        atisCache[entry.airport] = entry.letter;
+        atisFullData[entry.airport] = entry; // Save full data
+
+        console.log(`ATIS changed for : ${previousLetter} ➜ ${entry.letter}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error updating ATIS cache:', err.message);
+  }
+}
+setInterval(updateAtisData, 6000);
+
+app.get('/atis/:icao', (req, res) => {
+    const icao = req.params.icao.toUpperCase();
+    const atis = atisCache[icao];
+
+    if (atis) {
+        res.json({ airport: icao, letter: atis });
+    } else {
+        res.status(404).json({ error: 'ATIS data not available for this airport.' });
+    }
+});
+
 // Internal flight plan storage by playerName
 const flightPlanMap = new Map(); // key: playerName, value: { ...flightPlan, timestamp }
 

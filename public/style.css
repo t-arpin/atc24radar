@@ -109,7 +109,7 @@ button {
     font-family: ui-monospace, "Cascadia Mono", monospace;
 }
 
-.sidebar-button:hover {
+.sidebar-button:hover { 
     background-color: #222222;
 }
 
@@ -504,32 +504,10 @@ input {
     font-family: ui-monospace, "Cascadia Mono", monospace;
 }
 
-#font-size-input {
-    width: 44px;
-    padding: 4px;
-    margin-left: 16px;
-}
-
-#font-size-input-ground {
-    margin-top: 5px;
+.settings-input {
     width: 45px;
     padding: 4px;
-    margin-left: 10px;
-}
-
-#fix-font-size {
-    margin-top: 5px;
-    width: 45px;
-    padding: 4px;
-    margin-left: 55px;
-}
-
-#fix-size {
-    margin-top: 5px;
-    width: 45px;
-    padding: 4px;
-    margin-left: 88px;
-    margin-bottom: 5px;
+    margin-left: auto;
 }
 
 #bounds-check {
@@ -683,9 +661,9 @@ input {
     top: 200px;
     left: 400px;
     font-size: .7em;
-    height: 270px;
+    height: auto;
     padding: 10px;
-    gap: 10px;
+    gap: 15px;
 }
 
 .left input {
@@ -704,23 +682,20 @@ input {
 
 .left {
     display: grid;
-    gap: 20px;
-    grid-template-columns: 100px 100px 100px 100px;
-    grid-template-rows: 100px 115px;
+    gap: 15px;
+    grid-template-columns: 100px 140px;
+    grid-template-rows: auto auto;
 }
 
-.left select {
-    margin-block: 10px;
-}
 
 #output {
     white-space: pre-wrap;
     border: 1px solid #555;
     padding: 10px;
-    height: 250px;
-    width: 400px;
+    height: 130px;
+    width: 300px;
     overflow-y: auto;
-    font-size: .9em;
+    font-size: 1em;
     scrollbar-width: thin;
     scrollbar-color: #555 transparent;
 }
@@ -769,8 +744,8 @@ input {
 
 
 #atis-gen-button {
+    font-size: 1em;
     font-family: inherit;
-    margin-top: 15px;
     padding: 5px;
 }
 
@@ -830,7 +805,7 @@ input {
     bottom: 0;
     margin: auto;
     width: 350px;
-    height: 215px;
+    height: 205px;
     display: block;
 }
 
@@ -843,4 +818,31 @@ input {
     width: 350px;
     height: 135px;
     display: block;
+}
+
+#vector-overlay {
+    right: 70vw;
+    bottom: 50vh;
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    gap: 10px;
+}
+
+.vector-button {
+    background-color: #303030;
+    color: #fff;
+    border: none;
+    height: 30px;
+    width: 100%;
+    font-family: ui-monospace, "Cascadia Mono", monospace;
+}
+
+.vector-button:hover {
+  background-color: #333333;
+}
+
+.vector:focus {
+  outline: 2px solid #333333;
+  border-radius: 2px;
 }
