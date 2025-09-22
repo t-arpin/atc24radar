@@ -471,7 +471,7 @@ function loadGroundChartSVG(airportSelector, cont) {
             mapSvg.appendChild(loaded); // Add GROUND.svg first
 
             // Now fetch and append taxiways.svg
-            return fetch(`public/assets/maps/${folder}/taxiways.svg`);
+            return fetch(`public/assets/maps/${folder}/TAXIWAYS.svg`);
         })
         .then(response => {
             if (!response.ok) {
