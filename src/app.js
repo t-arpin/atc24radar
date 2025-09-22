@@ -6,7 +6,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
 const PORT = 4000;
-const API_URL = 'https://24data.ptfs.app/acft-data';
+const API_URL = 'https://24data.ptfs.app/acft-data/event';
 const POLL_INTERVAL_MS = 3000;
 const FLIGHTPLAN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const MISSING_AC_TTL_MS = 120 * 1000; // 30 seconds
@@ -143,7 +143,7 @@ externalWS.on('message', (data) => {
         const msg = JSON.parse(data);
         const { t: type, d: payload } = msg;
 
-        if (type === 'FLIGHT_PLAN') {
+        if (type === 'EVENT_FLIGHT_PLAN') {
             const playerName = payload.robloxName; // NEW: use playerName instead of callsign
 
             if (!playerName) {

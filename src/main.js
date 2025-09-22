@@ -76,6 +76,8 @@ let textDistance = null;
 let previousChartTransform = null;
 let groundAircraftElements = {}; // Maps aircraft ID to <g> element
 let target;
+let currentStations = new Set();;
+currentStations.add(airportSelector.value)
 
 const aircraftTrails = {};
 const maxTrailLength = 15;
@@ -92,6 +94,7 @@ function runOnMapLoad() {
     });
     loadApproachList(airportSelector.value);
     fetchData();
+    loadTopDown();
 }
 
 // Update time display every second
@@ -134,13 +137,22 @@ function overlaySetup(overlay){
         }
     });
 
+    let lastX;
+    let lastY;
     document.addEventListener('mousemove', e => {
-        if (!isDraggingOverlay || target != overlay) return;
+        if (!isDraggingOverlay || target != overlay || overlay.id == 'changes-overlay') return;
 
+        let x;
+        let y;
         const dx = e.clientX - start.x;
         const dy = e.clientY - start.y;
 
-        overlay.style.transform = `translate(${currentX + dx}px, ${currentY + dy}px)`;
+        x = currentX + dx + parseInt(getComputedStyle(overlay).getPropertyValue('left'), 10) < 0 || currentX + dx + parseInt(getComputedStyle(overlay).getPropertyValue('left'), 10) + overlay.offsetWidth > window.innerWidth ? lastX : currentX + dx;
+        y = currentY + dy + parseInt(getComputedStyle(overlay).getPropertyValue('top'), 10) < 0 || currentY + dy + parseInt(getComputedStyle(overlay).getPropertyValue('top'), 10) + overlay.offsetHeight > window.innerHeight ? lastY : currentY + dy;
+        
+        overlay.style.transform = `translate(${x}px, ${y}px)`;
+        lastX = x
+        lastY = y
     });
 
     document.addEventListener('mouseup', () => {
@@ -285,8 +297,13 @@ function updateAirportSelector() {
     departuresElements = {};
     departuresTimestamps = {};
     updateDepartures(aircraftData);
+    loadRunwayOptions();
+    MultiselectDropdown();
     generateATIS();
     loadApproachList(airportSelector.value);
+    currentStations = new Set();
+    currentStations.add(airportSelector.value);
+    loadTopDown();
 }
 
 document.getElementById('airport-dropdown-app').addEventListener('change', () => {
@@ -373,78 +390,173 @@ function loadAirportData(airportSelector) {
 function loadGroundChartSVG(airportSelector, cont) {
     const folder = airportSelector.value;
     const svgPath = `public/assets/maps/${folder}/GROUND.svg`;
+    const mapSvg = cont.querySelector('#ground-map-svg');
 
+    // Helper: parse text into SVG element
+    const parseSVG = (svgText) => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgText, "image/svg+xml");
+        return doc.documentElement;
+    };
+
+    // Remove existing ground SVG
+    const existing = cont.querySelector('#groundCenter-svg');
+    if (existing) {
+        existing.parentNode.removeChild(existing);
+    }
+
+    const existingTaxi = cont.querySelector('#taxiwaysCenter-svg');
+    if (existingTaxi) {
+        existing.parentNode.removeChild(existingTaxi);
+    }
+
+    // Fetch GROUND.svg
     fetch(svgPath)
         .then(response => {
             if (!response.ok) throw new Error('Failed to load ground SVG: ' + response.status);
             return response.text();
         })
         .then(svgText => {
-            // Remove existing ground SVG
-            const existing = cont.querySelector('#groundCenter-svg');
-            if (existing) {
-                existing.parentNode.removeChild(existing);
+            const loaded = parseSVG(svgText);
+            loaded.setAttribute('id', 'groundCenter-svg');
+
+            // Manipulate layers
+            const getLayer = (label) => {
+                return Array.from(loaded.querySelectorAll('g')).find(el => el.getAttribute('inkscape:label') === label);
+            };
+
+            // Style Taxiway Lines
+            const taxiwaysLines = getLayer('Taxiway Lines');
+            if (taxiwaysLines) {
+                taxiwaysLines.querySelectorAll('path, rect, circle, polygon, polyline, ellipse').forEach(el => {
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+                    el.setAttribute('fill', 'none');
+                    el.setAttribute('stroke', '#927d16');
+                    el.setAttribute('stroke-width', 0.03 * groundCurrentZoom / groundOffsetsMap.get(folder).zoom);
+                });
             }
 
-            const mapSvg = cont.querySelector('#ground-map-svg');
-            setTimeout(() => {
-                mapSvg.innerHTML += svgText;
-
-                const loaded = mapSvg.querySelector('svg:last-of-type');
-                if (!loaded) throw new Error('No <svg> element found in GROUND.svg');
-
-                loaded.setAttribute('id', 'groundCenter-svg');
-
-                //change colors
-                let allShapes = null;
-
-                // Taxiways Lines
-                const taxiwaysLines = Array.from(loaded.querySelectorAll('g'))
-                    .find(el => el.getAttribute('inkscape:label') === 'Taxiway Lines');
-
+            document.addEventListener('wheel', () => {
+                const taxiwaysLines = getLayer('Taxiway Lines');
                 if (taxiwaysLines) {
-                    allShapes = taxiwaysLines.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-                    allShapes.forEach(el => {
-                        el.removeAttribute('fill');
-                        el.removeAttribute('style');
-                        el.setAttribute('fill', 'none');
-                        el.setAttribute('stroke', 'black');
-                        el.setAttribute('stroke-width', 1.5 * groundCurrentZoom);
+                    taxiwaysLines.querySelectorAll('path, rect, circle, polygon, polyline, ellipse').forEach(el => {
+                        el.setAttribute('stroke-width', 0.03 * groundCurrentZoom / groundOffsetsMap.get(folder).zoom);
                     });
                 }
+            })
 
-                // Taxiways
-                const taxiways = Array.from(loaded.querySelectorAll('g'))
-                    .find(el => el.getAttribute('inkscape:label') === 'Taxiways / Ramps');
-                if (taxiways) {
-                    allShapes = taxiways.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-                    allShapes.forEach(el => {
-                        el.removeAttribute('fill');
-                        el.removeAttribute('style');
-                        el.setAttribute('fill', '#414141');
-                    });
-                }
+            // Style Taxiways
+            const taxiways = getLayer('Taxiways / Ramps');
+            if (taxiways) {
+                taxiways.querySelectorAll('path, rect, circle, polygon, polyline, ellipse').forEach(el => {
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+                    el.setAttribute('fill', '#2e2e2eff');
+                });
+            }
 
-                // Buildings and Runways
-                const buildings = Array.from(loaded.querySelectorAll('g'))
-                    .find(el => el.getAttribute('inkscape:label') === 'Runways / Buildings');
+            // Style Buildings and Runways
+            const buildings = getLayer('Runways / Buildings');
+            if (buildings) {
+                buildings.querySelectorAll('path, rect, circle, polygon, polyline, ellipse').forEach(el => {
+                    el.removeAttribute('fill');
+                    el.removeAttribute('style');
+                    el.setAttribute('fill', '#0e0e0eff');
+                    el.setAttribute('stroke', 'none');
+                    el.setAttribute('stroke-width', 0.5 * groundCurrentZoom);
+                });
+            }
 
-                if (buildings) {
-                    allShapes = buildings.querySelectorAll('path, rect, circle, polygon, polyline, ellipse');
-                    allShapes.forEach(el => {
-                        el.removeAttribute('fill');
-                        el.removeAttribute('style');
-                        el.setAttribute('fill', '#222222');
-                        el.setAttribute('stroke', 'none');
-                        el.setAttribute('stroke-width', 0.5 * groundCurrentZoom);
-                    });
-                }
-            }, 100);
+            mapSvg.appendChild(loaded); // Add GROUND.svg first
+
+            // Now fetch and append taxiways.svg
+            return fetch(`public/assets/maps/${folder}/taxiways.svg`);
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load taxiways SVG: ' + response.status);
+            }
+            return response.text();
+        })
+        .then(taxiwaysText => {
+            const taxiwaysSVG = parseSVG(taxiwaysText);
+            taxiwaysSVG.setAttribute('id', 'taxiwaysCenter-svg');
+            mapSvg.appendChild(taxiwaysSVG);
+            
+            
+            const textElements = Array.from(taxiwaysSVG.querySelectorAll('g')).find(el => el.getAttribute('id')).querySelectorAll('text');
+            textElements.forEach(el => {
+                const baseFontSize = 0.4;
+                el.setAttribute('style', `font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:${baseFontSize * groundCurrentZoom / groundOffsetsMap.get(folder).zoom}px;font-family:Montserrat;-inkscape-font-specification:Montserrat;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#999999;fill-opacity:1;stroke-width:1;stroke-dasharray:none`);
+            });
+            document.addEventListener('wheel', () => {
+                textElements.forEach(el => {
+                    const baseFontSize = 0.4;
+                    el.setAttribute('style', `font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:${baseFontSize * groundCurrentZoom / groundOffsetsMap.get(folder).zoom}px;font-family:Montserrat;-inkscape-font-specification:Montserrat;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#999999;fill-opacity:1;stroke-width:1;stroke-dasharray:none`);
+                });
+            });            
         })
         .catch(err => {
             console.error(err);
-            alert('Error loading groundview: ' + err.message);
+            console.log('Error loading groundview: ' + err.message);
         });
+}
+
+//tool to rotate taxiway labels
+function updateTaxiwayLabelRotation(cameraRotationDeg) {
+    const taxiwaysSvg = document.querySelector('#taxiwaysCenter-svg');
+
+    if (!taxiwaysSvg) return;
+
+    const textElements = taxiwaysSvg.querySelectorAll('text');
+
+    textElements.forEach(el => {
+        const x = parseFloat(el.getAttribute('x')) || 0;
+        const y = parseFloat(el.getAttribute('y')) || 0;
+
+        // Counter-rotate to keep text upright
+        const rotation = -cameraRotationDeg;
+
+        el.setAttribute('transform', `rotate(${rotation}, ${x}, ${y})`);
+    });
+    downloadModifiedTaxiwaysSVG();
+}
+
+function downloadModifiedTaxiwaysSVG(filename = 'TAXIWAYS.svg') {
+    const taxiwaysSvg = document.querySelector('#taxiwaysCenter-svg');
+    if (!taxiwaysSvg) {
+        alert('Taxiways SVG not found.');
+        return;
+    }
+
+    // Clone the SVG so we don't mess with the live one
+    const clone = taxiwaysSvg.cloneNode(true);
+
+    // Create a full SVG wrapper with proper XML headers
+    const svgWrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+    // Copy attributes from original
+    for (let attr of taxiwaysSvg.attributes) {
+        svgWrapper.setAttribute(attr.name, attr.value);
+    }
+
+    svgWrapper.appendChild(clone);
+
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgWrapper);
+
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    // Create download link and trigger it
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+
+    // Cleanup
+    URL.revokeObjectURL(url);
 }
 
 timeButton.addEventListener('click', () => {
@@ -636,6 +748,201 @@ document.getElementById('vector-icon').addEventListener('click', () => {
     const overlay = document.getElementById('vector-overlay');
     overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
     overlay.style.zIndex = getHighestZIndex() + 1;
+});
+
+document.getElementById('station-icon').addEventListener('click', () => {
+    const overlay = document.getElementById('station-overlay');
+    overlay.classList.contains('show') ? overlay.classList.remove('show') : overlay.classList.add('show');
+    overlay.style.zIndex = getHighestZIndex() + 1;
+});
+
+//station settings
+function loadTopDown() {
+    const stationToggles = document.getElementById('station-toggles');
+    stationToggles.innerHTML = '';
+
+    for (const [key, value] of stationMap) {
+        if (value === airportSelector.value && key != airportSelector.value) {
+            const label = document.createElement('label');
+            label.setAttribute('for', `${key}-topdown`);
+            label.style.fontSize = '.8em';
+            label.style.marginRight = 'auto';
+            label.textContent = key;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `${key}-topdown`;
+
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    currentStations.add(key);
+                } else {
+                    currentStations.delete(key);
+                }
+            });
+            const cont = document.createElement('div');
+            cont.classList.add('topdown-div')
+            cont.append(label);
+            cont.append(checkbox);
+
+            stationToggles.append(cont);
+        }
+    }
+}
+
+//runway assignment selector : 
+var style = document.createElement('style');
+style.setAttribute("id", "multiselect_dropdown_styles");
+
+document.head.appendChild(style);
+
+function loadRunwayOptions() {
+    const dep = document.getElementById('depRwy');
+    const arr = document.getElementById('arrRwy');
+    dep.innerHTML = '';
+    arr.innerHTML = '';
+    for (const runway of airportInfo[airportSelector.value].runways) {
+        const opt = document.createElement('option');
+        opt.setAttribute('value', runway);
+        opt.innerHTML = runway;
+        dep.appendChild(opt);
+    }
+    for (const runway of airportInfo[airportSelector.value].runways) {
+        const opt = document.createElement('option');
+        opt.setAttribute('value', runway);
+        opt.innerHTML = runway;
+        arr.appendChild(opt);
+    }
+}
+
+function MultiselectDropdown(options) {
+    var config = {
+        search: true,
+        height: 'auto',
+        placeholder: 'select',
+        txtSelected: 'selected',
+        txtAll: 'All',
+        width: '100%',
+        ...options
+    };
+    function newEl(tag, attrs) {
+        var e = document.createElement(tag);
+        if (attrs !== undefined) Object.keys(attrs).forEach(k => {
+            if (k === 'class') { Array.isArray(attrs[k]) ? attrs[k].forEach(o => o !== '' ? e.classList.add(o) : 0) : (attrs[k] !== '' ? e.classList.add(attrs[k]) : 0) }
+            else if (k === 'style') {
+                Object.keys(attrs[k]).forEach(ks => {
+                    e.style[ks] = attrs[k][ks];
+                });
+            }
+            else if (k === 'text') { attrs[k] === '' ? e.innerHTML = '&nbsp;' : e.innerText = attrs[k] }
+            else e[k] = attrs[k];
+        });
+        return e;
+    }
+
+    document.querySelectorAll('.multiselect-dropdown').forEach(el => el.remove());
+
+    document.querySelectorAll("select[multiple]").forEach((el, k) => {
+        var div = newEl('div', { class: 'multiselect-dropdown', style: { width: config.style?.width, padding: config.style?.padding ?? '' } });
+        el.style.display = 'none';
+        el.parentNode.insertBefore(div, el.nextSibling);
+        var listWrap = newEl('div', { class: 'multiselect-dropdown-list-wrapper' });
+        var list = newEl('div', { class: 'multiselect-dropdown-list', style: { height: config.height } });
+        var search = newEl('input', { class: ['multiselect-dropdown-search'].concat([config.searchInput?.class ?? 'form-control']), style: { width: '100%', display: el.attributes['multiselect-search']?.value === 'true' ? 'block' : 'none' }, placeholder: 'search' });
+        listWrap.appendChild(search);
+        div.appendChild(listWrap);
+        listWrap.appendChild(list);
+
+        el.loadOptions = () => {
+            list.innerHTML = '';
+
+            if (el.attributes['multiselect-select-all']?.value == 'true') {
+                var op = newEl('div', { class: 'multiselect-dropdown-all-selector' })
+                var ic = newEl('input', { type: 'checkbox' });
+                op.appendChild(ic);
+                op.appendChild(newEl('label', { text: config.txtAll }));
+
+                op.addEventListener('click', () => {
+                    op.classList.toggle('checked');
+                    op.querySelector("input").checked = !op.querySelector("input").checked;
+
+                    var ch = op.querySelector("input").checked;
+                    list.querySelectorAll("input").forEach(i => i.checked = ch);
+                    Array.from(el.options).map(x => x.selected = ch);
+
+                    el.dispatchEvent(new Event('change'));
+                });
+                ic.addEventListener('click', (ev) => {
+                    ic.checked = !ic.checked;
+                });
+
+                list.appendChild(op);
+            }
+
+            Array.from(el.options).map(o => {
+                var op = newEl('div', { class: o.selected ? 'checked' : '', optEl: o })
+                var ic = newEl('input', { type: 'checkbox', checked: o.selected });
+                op.appendChild(ic);
+                op.appendChild(newEl('label', { text: o.text }));
+
+                op.addEventListener('click', () => {
+                    op.classList.toggle('checked');
+                    op.querySelector("input").checked = !op.querySelector("input").checked;
+                    op.optEl.selected = !!!op.optEl.selected;
+                    el.dispatchEvent(new Event('change'));
+                });
+                ic.addEventListener('click', (ev) => {
+                    ic.checked = !ic.checked;
+                });
+
+                list.appendChild(op);
+            });
+            div.listEl = listWrap;
+
+            div.refresh = () => {
+                div.querySelectorAll('span.optext, span.placeholder').forEach(t => div.removeChild(t));
+                var sels = Array.from(el.selectedOptions);
+                if (sels.length > (el.attributes['multiselect-max-items']?.value ?? 5)) {
+                    div.appendChild(newEl('span', { class: ['optext', 'maxselected'], text: sels.length + ' ' + config.txtSelected }));
+                }
+                else {
+                    sels.map(x => {
+                        var c = newEl('span', { class: 'optext', text: x.text });
+                        div.appendChild(c);
+                    });
+                }
+                if (0 == el.selectedOptions.length) div.appendChild(newEl('span', { class: 'placeholder', text: el.attributes['placeholder']?.value ?? config.placeholder }));
+            };
+            div.refresh();
+        }
+        el.loadOptions();
+
+        search.addEventListener('input', () => {
+            list.querySelectorAll("div").forEach(d => {
+                var txt = d.querySelector("label").innerText.toUpperCase();
+                d.style.display = txt.includes(search.value.toUpperCase()) ? 'block' : 'none';
+            });
+        });
+
+        div.addEventListener('click', () => {
+            div.listEl.style.display = 'block';
+            search.focus();
+            search.select();
+        });
+
+        document.addEventListener('click', function (event) {
+            
+            if (!div.contains(event.target) && !event.target.classList.contains('atis-dropdown') ) {
+                listWrap.style.display = 'none';
+                div.refresh();
+            }
+        });
+    });
+}
+
+window.addEventListener('load', () => {
+    loadRunwayOptions();
+    MultiselectDropdown();
 });
 
 //vectoring stuff
@@ -881,8 +1188,8 @@ function generateATIS() {
     const code = nextLetter(currentAtisCode);
     const qnh = document.getElementById('qnh').value;
     const charts = document.getElementById('charts').value;
-    const depRwys = document.getElementById('depRwy').value;
-    const arrRwys = document.getElementById('arrRwy').value;
+    const depRwys = Array.from(document.getElementById('depRwy').selectedOptions).map(opt => opt.value).join(' ');;
+    const arrRwys = Array.from(document.getElementById('arrRwy').selectedOptions).map(opt => opt.value).join(' ');;
     
     const time = new Date().toISOString().slice(11,16).replace(':','') + 'z';
 
@@ -1082,7 +1389,7 @@ function updateDepartures(data){
     //add new rows
     for (const [id, info] of Object.entries(data)) {
         const fp = info.flightPlan;
-        if (!fp || fp.departing !== airportSelector.value || (fp.flightStatus === "landed" || info.flightStatus === "desceding" || info.flightStatus === "inFlight")) continue;
+        if (!fp || !currentStations.has(fp.departing) || (fp.flightStatus === "landed" || info.flightStatus === "desceding" || info.flightStatus === "inFlight")) continue;
         
         newIds.add(id);
 
@@ -1261,7 +1568,7 @@ function updateArrivals(data){
     //add new rows
     for (const [id, info] of Object.entries(data)) {
         const fp = info.flightPlan;
-        if (!fp || fp.arriving !== airportSelector.value || info.isOnGround) continue;
+        if (!fp || !currentStations.has(fp.arriving) || info.isOnGround) continue;
         
         newIds.add(id);
 
@@ -1544,7 +1851,7 @@ function updateGroundAircraftLayer(data, cont) {
 
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("fill", "white");
-            label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * document.getElementById('label-size-slider').value);
+            label.setAttribute('font-size', groundLabelFontSize/30 * groundCurrentZoom/groundOffsetsMap.get(airportSelector.value).zoom * document.getElementById('label-size-slider').value);
             label.classList.add("ground-aircraft-label");
             label.setAttribute('id', "aircraft-label");
             label.setAttribute("x", defaultLabelOffset * groundCurrentZoom); // offset for label
@@ -1640,19 +1947,19 @@ function updateGroundLabel(group, info, id) {
     let color = 'white';
 
     if (info.flightPlan != null) {
-        if (info.flightPlan.departing == airportSelector.value) {
+        if (currentStations.has(info.flightPlan.departing)) {
             color = '#48b8fb';
         }
-        if (info.flightPlan.arriving == airportSelector.value) {
+        if (currentStations.has(info.flightPlan.arriving)) {
             color = '#fce241';
         }
-        if (info.flightPlan.flightrules == 'VFR' && (info.flightPlan.departing == airportSelector.value || info.flightPlan.arriving == airportSelector.value)){
+        if (info.flightPlan.flightrules == 'VFR' && (currentStations.has(info.flightPlan.departing) || currentStations.has(info.flightPlan.arriving))){
             color = '#48fb99ff';
         }
         text.setAttribute("fill", color);
     }
 
-    label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * document.getElementById('label-size-slider').value);
+    label.setAttribute('font-size', groundLabelFontSize/30 * groundCurrentZoom/groundOffsetsMap.get(airportSelector.value).zoom * document.getElementById('label-size-slider').value);
 
 
     const callsignParts = id.split("-");
@@ -2086,13 +2393,13 @@ function updateLabel(group, info, id) {
     let color = 'white'
 
     if (info.flightPlan) {
-        if (info.flightPlan.departing == airportSelector.value) {
+        if (currentStations.has(info.flightPlan.departing)) {
             color = '#48b8fb';
         }
-        if (info.flightPlan.arriving == airportSelector.value) {
+        if (currentStations.has(info.flightPlan.arriving)) {
             color = '#fce241';
         }
-        if (info.flightPlan.flightrules == 'VFR' && (info.flightPlan.departing == airportSelector.value || info.flightPlan.arriving == airportSelector.value)){
+        if (info.flightPlan.flightrules == 'VFR' && (currentStations.has(info.flightPlan.departing) || currentStations.has(info.flightPlan.arriving))){
             color = '#48fb99ff';
         }
         text.setAttribute("fill", color);
@@ -2229,7 +2536,7 @@ function fetchMapLayerGround(container) {
             slider.addEventListener('input', () => {
                 const labels = svg.querySelectorAll('.ground-aircraft-label');
                 labels.forEach(label => {
-                    label.setAttribute('font-size', groundLabelFontSize * groundCurrentZoom * slider.value);
+                    label.setAttribute('font-size', groundLabelFontSize/30 * groundCurrentZoom/groundOffsetsMap.get(airportSelector.value).zoom * slider.value);
                 });
             });
 
