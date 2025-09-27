@@ -1289,9 +1289,19 @@ function loadGroundDisplay(cont) {
 }
 
 //webSocket client to receive aircraft data
-const secureProtocol = 's';
-const serverAddress = 'api.24radar.xyz';
-//const serverAddress = `localhost:${PORT}`;
+const secureProtocol = '';
+//const serverAddress = 'api.24radar.xyz';
+const serverAddress = `localhost:${PORT}`;
+
+const socket = new WebSocket(`ws://localhost:${PORT}`);
+
+socket.onopen = () => {
+    console.log("WebSocket connection established");
+};
+
+socket.onclose = () => {
+    console.log("WebSocket connection closed");
+};
 
 async function fetchData() {
     try {
