@@ -1289,7 +1289,7 @@ function loadGroundDisplay(cont) {
 }
 
 //webSocket client to receive aircraft data
-const secureProtocol = '';
+const secureProtocol = 's';
 const serverAddress = 'api.24radar.xyz';
 //const serverAddress = `localhost:${PORT}`;
 
