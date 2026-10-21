@@ -47,7 +47,7 @@ app.use((req, res, next) => {
 
 const getLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute window
-    max: 60, // max 30 requests per IP per minute
+    max: 120, // max requests per IP per minute
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,

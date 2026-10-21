@@ -269,13 +269,13 @@ const airports = {
             "CTR": null
         }
     },
-    "IGRV": {
-        "name": "Grindavik",
-        "runways": ["6", "24"],
+    "IKFL": {
+        "name": "Keflavik",
+        "runways": ["25", "7", "16", "34"],
         "noLanding": [],
         "noTakeoff": [],
         "canUseOpposite": false,
-        "ChartsLinkPath": "Grindavik/Grindavik",
+        "ChartsLinkPath": "Grindavik/Keflavik/",
         "frequency": {
             "DEL": null,
             "GND": 121.900,
@@ -298,6 +298,21 @@ const airports = {
             "APP": 122.730,
             "CTR": 127.825
         }
-    }
+    },
+    "IBRD": {
+        "name": "Bird Island",
+        "runways": ["8", "26"],
+        "noLanding": [],
+        "noTakeoff": [],
+        "canUseOpposite": false,
+        "ChartsLinkPath": "Orenji/Bird Island",
+        "frequency": {
+            "DEL": null,
+            "GND": null,
+            "TWR": null,
+            "APP": null,
+            "CTR": null
+        }
+    },
 }
 export default airports;

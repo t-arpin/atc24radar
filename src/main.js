@@ -106,6 +106,10 @@ function updateTime() {
 }
 setInterval(updateTime, 1000);
 
+/* ========================================
+            OVERLAY
+  ========================================*/
+
 function getHighestZIndex() {
     const overlays = document.querySelectorAll('.overlay');
     let highest = 0;
@@ -278,11 +282,6 @@ function drawFixes() {
     });
 }
 
-airportSelector.addEventListener('change', () => {
-    document.getElementById('airport-dropdown-app').value = airportSelector.value
-    fetchAtisLetter(airportSelector.value);
-});
-
 function updateAirportSelector() {
     loadAirportData(airportSelector);
     groundAircraftElements = {};
@@ -305,12 +304,6 @@ function updateAirportSelector() {
     currentStations.add(airportSelector.value);
     loadTopDown();
 }
-
-document.getElementById('airport-dropdown-app').addEventListener('change', () => {
-    loadApproachList(document.getElementById('airport-dropdown-app').value);
-    airportSelector.value = document.getElementById('airport-dropdown-app').value
-    updateAirportSelector()
-});
 
 function loadAirportData(airportSelector) {
     const folder = airportSelector.value;
@@ -503,26 +496,6 @@ function loadGroundChartSVG(airportSelector, cont) {
         });
 }
 
-//tool to rotate taxiway labels
-function updateTaxiwayLabelRotation(cameraRotationDeg) {
-    const taxiwaysSvg = document.querySelector('#taxiwaysCenter-svg');
-
-    if (!taxiwaysSvg) return;
-
-    const textElements = taxiwaysSvg.querySelectorAll('text');
-
-    textElements.forEach(el => {
-        const x = parseFloat(el.getAttribute('x')) || 0;
-        const y = parseFloat(el.getAttribute('y')) || 0;
-
-        // Counter-rotate to keep text upright
-        const rotation = -cameraRotationDeg;
-
-        el.setAttribute('transform', `rotate(${rotation}, ${x}, ${y})`);
-    });
-    downloadModifiedTaxiwaysSVG();
-}
-
 function downloadModifiedTaxiwaysSVG(filename = 'TAXIWAYS.svg') {
     const taxiwaysSvg = document.querySelector('#taxiwaysCenter-svg');
     if (!taxiwaysSvg) {
@@ -558,6 +531,10 @@ function downloadModifiedTaxiwaysSVG(filename = 'TAXIWAYS.svg') {
     // Cleanup
     URL.revokeObjectURL(url);
 }
+
+/* ========================================
+            UI Event Listener
+  ========================================*/
 
 timeButton.addEventListener('click', () => {
     zuluTime = !zuluTime;
@@ -643,6 +620,17 @@ displayButton.addEventListener('click', () => {
 
 fullWideButton.addEventListener('click', () => {
     expandCollapse();
+});
+
+airportSelector.addEventListener('change', () => {
+    document.getElementById('airport-dropdown-app').value = airportSelector.value
+    fetchAtisLetter(airportSelector.value);
+});
+
+document.getElementById('airport-dropdown-app').addEventListener('change', () => {
+    loadApproachList(document.getElementById('airport-dropdown-app').value);
+    airportSelector.value = document.getElementById('airport-dropdown-app').value
+    updateAirportSelector()
 });
 
 function expandCollapse() {
@@ -945,7 +933,9 @@ window.addEventListener('load', () => {
     MultiselectDropdown();
 });
 
-//vectoring stuff
+/* ========================================
+            Vectoring
+  ========================================*/
 let hoveredVector = null;
 const vectorStart = document.getElementById('vector-start');
 const vectorClear = document.getElementById('vector-clear');
@@ -2624,7 +2614,7 @@ function fetchMapLayerGround(container) {
                 //update start point
                 start.x = e.clientX;
                 start.y = e.clientY;
-                //console.log(`"${airportSelector.value}": { zoom: ${groundCurrentZoom}, x: ${viewBox.x}, y: ${viewBox.y}, r: ${degOffset} },`);
+                console.log(`"${airportSelector.value}": { zoom: ${groundCurrentZoom}, x: ${viewBox.x}, y: ${viewBox.y}, r: ${degOffset} },`);
             });
 
             svg.addEventListener('mouseup', e => {

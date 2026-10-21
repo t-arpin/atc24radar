@@ -26,7 +26,7 @@ export default {
 
   "ISKP": "UNICOM",
 
-  "IGRV": "IGRV",
+  "IKFL": "IKFL",
 
   "ISAU": "ISAU"
 }

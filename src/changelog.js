@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 (function () {
-    const CURRENT_VERSION = '0.1.4-beta';
+    const CURRENT_VERSION = '0.1.5-beta';
     const STORAGE_KEY = 'changelog_seen_version';
     const overlay = document.getElementById('changes-overlay');
 
