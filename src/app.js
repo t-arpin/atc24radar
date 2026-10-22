@@ -6,8 +6,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
 const PORT = 4000;
-const API_URL = 'https://24data.ptfs.app/acft-data/event';
-const POLL_INTERVAL_MS = 3000;
+const API_URL = 'https://24data.ptfs.app/acft-data';
+const POLL_INTERVAL_MS = 1000;
 const FLIGHTPLAN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const MISSING_AC_TTL_MS = 120 * 1000; // 30 seconds
 const lastSeenMap = new Map(); // key: playerName, value: last seen timestamp

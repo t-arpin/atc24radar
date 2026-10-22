@@ -79,7 +79,9 @@ let target;
 let currentStations = new Set();;
 currentStations.add(airportSelector.value)
 
+// Aircraft drawing
 const aircraftTrails = {};
+const interpolation_steps = 1;
 const maxTrailLength = 15;
 
 window.addEventListener('load', function () {
@@ -496,42 +498,6 @@ function loadGroundChartSVG(airportSelector, cont) {
         });
 }
 
-function downloadModifiedTaxiwaysSVG(filename = 'TAXIWAYS.svg') {
-    const taxiwaysSvg = document.querySelector('#taxiwaysCenter-svg');
-    if (!taxiwaysSvg) {
-        alert('Taxiways SVG not found.');
-        return;
-    }
-
-    // Clone the SVG so we don't mess with the live one
-    const clone = taxiwaysSvg.cloneNode(true);
-
-    // Create a full SVG wrapper with proper XML headers
-    const svgWrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-
-    // Copy attributes from original
-    for (let attr of taxiwaysSvg.attributes) {
-        svgWrapper.setAttribute(attr.name, attr.value);
-    }
-
-    svgWrapper.appendChild(clone);
-
-    const serializer = new XMLSerializer();
-    const svgString = serializer.serializeToString(svgWrapper);
-
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-
-    // Create download link and trigger it
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-
-    // Cleanup
-    URL.revokeObjectURL(url);
-}
-
 /* ========================================
             UI Event Listener
   ========================================*/
@@ -777,12 +743,6 @@ function loadTopDown() {
         }
     }
 }
-
-//runway assignment selector : 
-var style = document.createElement('style');
-style.setAttribute("id", "multiselect_dropdown_styles");
-
-document.head.appendChild(style);
 
 function loadRunwayOptions() {
     const dep = document.getElementById('depRwy');
@@ -1161,8 +1121,10 @@ function createVectorElement(vectorData) {
     });
 }
 
+/* ========================================
+            Atis
+  ========================================*/
 
-//atis stuff
 document.getElementById('atis-gen-button').addEventListener('click', () => {
     generateATIS();
     copyATIS();
@@ -1219,6 +1181,10 @@ function setWinds() {
     document.getElementById('wind-container').innerHTML = `W: ${dir}/${speed}`;
 }
 
+/* ========================================
+            Multi window viewer
+  ========================================*/
+
 window.addEventListener('load', function () {
     const sideButtons = document.querySelectorAll('.sidebar-button');
     sideButtons.forEach(button => {
@@ -1260,7 +1226,6 @@ window.addEventListener('load', function () {
     });
 });
 
-
 function loadGroundDisplay(cont) {
     groundAircraftElements = {};
     if (cont.querySelector('.ground-svg-container')) {
@@ -1278,27 +1243,44 @@ function loadGroundDisplay(cont) {
     }, 200);
 }
 
+/* ========================================
+            API integration
+  ========================================*/
+
 //webSocket client to receive aircraft data
-const secureProtocol = 's';
-const serverAddress = 'api.24radar.xyz';
-//const serverAddress = `localhost:${PORT}`;
+const secureProtocol = '';
+//const serverAddress = 'api.24radar.xyz';
+const serverAddress = `localhost:${PORT}`;
 
 const socket = new WebSocket(`ws${secureProtocol}://${serverAddress}`);
 
-socket.onopen = () => {
-    console.log("WebSocket connection established");
-};
+socket.onopen = () => console.log("WebSocket connection established");
 
-socket.onclose = () => {
-    console.log("WebSocket connection closed");
-};
+socket.onclose = () => console.log("WebSocket connection closed");
+
+let lastApiUpdate = performance.now();
+let lastInterpolationStep = performance.now();
+let lastDataJSON = null;
 
 async function fetchData() {
     try {
-        const response = await fetch(`http${secureProtocol}://${serverAddress}/data`);
+        const response = await fetch(`http${secureProtocol}://${serverAddress}/data`, { cache: "no-cache" });
+
         if (!response.ok) throw new Error("Network response was not ok");
 
         const enrichedAircraftMap = await response.json();
+
+        const newDataJSON = JSON.stringify(enrichedAircraftMap);
+
+        if (newDataJSON === lastDataJSON) { 
+            console.log("304");
+            return;
+        }
+
+        lastDataJSON = newDataJSON;
+
+        lastApiUpdate = performance.now();
+        lastInterpolationStep = lastApiUpdate;
         aircraftData = enrichedAircraftMap;
         updateAircraftLayer(enrichedAircraftMap);
         document.querySelectorAll('#ground-container').forEach(cont => {
@@ -1316,7 +1298,33 @@ async function fetchData() {
         console.error("Error fetching data:", error);
     }
 }
-setInterval(fetchData, 3000);
+setInterval(fetchData, 1000);
+
+function updateInterpolatedPositions() {
+    const now = performance.now();
+    const elapsed = (now - lastInterpolationStep) / 1000;
+    lastInterpolationStep = now;
+
+    for (const ac of Object.values(aircraftData)) {
+        if (!ac.position || ac.groundSpeed == null || ac.heading == null) {
+            continue;
+        }
+
+        const headingRad = ac.heading * Math.PI / 180;
+        const distance = ac.groundSpeed * 0.6442765 * elapsed;
+
+        ac.position.x += Math.sin(headingRad) * distance;
+        ac.position.y -= Math.cos(headingRad) * distance;
+    }
+
+    updateAircraftLayer(aircraftData);
+
+    document.querySelectorAll('#ground-container').forEach(cont => {
+        updateGroundAircraftLayer(aircraftData, cont);
+    });
+}
+
+setInterval(updateInterpolatedPositions, 1000 / 100);
 
 async function loadApproachList(icao) {
     let paths;
@@ -1380,6 +1388,10 @@ async function fetchAtisLetter(icao) {
     currentAtisCode = currentAtisLetter;
     updateAirportSelector();
 }
+
+/* ========================================
+            Departures
+  ========================================*/
 
 let departuresElements = {};
 let departuresTimestamps = {};
@@ -1560,6 +1572,10 @@ function reorderDepartureRows() {
     }
 }
 
+/* ========================================
+            Arrivals
+  ========================================*/
+
 let arrivalsElements = {};
 let arrivalsTimestamps = {};
 function updateArrivals(data) {
@@ -1699,6 +1715,10 @@ function preserveFocusWhileUpdating(updateFunction) { //note
     }*/
 }
 
+/* ========================================
+            Charts
+  ========================================*/
+
 function addAirportChart(container) {
     const chartUrl = `https://ptfs.app/charts/dark/${airportSelector.value}%20Ground%20Chart.png`;
 
@@ -1817,7 +1837,10 @@ function addAirportChart(container) {
     };
 }
 
-//aircraft fetures
+/* ========================================
+            Ground Aircrafts
+  ========================================*/
+
 function updateGroundAircraftLayer(data, cont) {
     const newIds = new Set();
     const svg = cont.querySelector('#ground-map-svg');
@@ -2052,10 +2075,10 @@ function labelGroundMove(e, label, svg, group, start) {
     updateGroundConnector(group);
 }
 
-/*
-...................................................................................................................*/
+/* ========================================
+            Aircraft layer
+  ========================================*/
 
-//aircraft fetures
 let aircraftElements = {}; // Maps aircraft ID to <g> element
 
 function updateAircraftLayer(data) {
@@ -2486,6 +2509,10 @@ function updateMeasuringTool(x, y) {
     textDistance.setAttribute("y", (measuringLineStart.y + y) / 2);
     textDistance.setAttribute("font-size", 12 * currentZoom);
 }
+
+/* ========================================
+            SVG's
+  ========================================*/
 
 function fetchMapLayerGround(container) {
     //fetch main SVG
@@ -2938,6 +2965,7 @@ function fetchMapLayer(container) {
             container.innerHTML = `<p style="color:red;">Error loading SVG</p>`;
         });
 }
+
 function loadApproachSVG(path, file) {
     fetch(`public/assets/maps/${path}/${file}`)
         .then(response => {
