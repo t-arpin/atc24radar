@@ -77,12 +77,9 @@ let previousChartTransform = null;
 let groundAircraftElements = {}; // Maps aircraft ID to <g> element
 let target;
 let currentStations = new Set();;
+let overlayKey = null;
 currentStations.add(airportSelector.value)
 
-// Aircraft drawing
-const aircraftTrails = {};
-const interpolation_steps = 1;
-const maxTrailLength = 15;
 
 window.addEventListener('load', function () {
     fetchMapLayer(container);
@@ -180,7 +177,7 @@ function overlaySetup(overlay) {
 function displayOverlay(id, info) {
     if (curentAircraftId == id) {
         curentAircraftId = null;
-        overlay.classList.remove('show');
+        infoOverlay.classList.remove('show');
         return;
     } else {
         curentAircraftId = id;
@@ -1248,9 +1245,9 @@ function loadGroundDisplay(cont) {
   ========================================*/
 
 //webSocket client to receive aircraft data
-const secureProtocol = '';
-//const serverAddress = 'api.24radar.xyz';
-const serverAddress = `localhost:${PORT}`;
+const secureProtocol = 's';
+const serverAddress = 'api.24radar.xyz';
+//const serverAddress = `localhost:${PORT}`;
 
 const socket = new WebSocket(`ws${secureProtocol}://${serverAddress}`);
 
@@ -1258,73 +1255,129 @@ socket.onopen = () => console.log("WebSocket connection established");
 
 socket.onclose = () => console.log("WebSocket connection closed");
 
-let lastApiUpdate = performance.now();
-let lastInterpolationStep = performance.now();
-let lastDataJSON = null;
+const aircraftMotion = new Map();
+const MAX_PREDICT_S = 4;       // stop extrapolating if data goes stale
+const TAU = 0.6;               // seconds for a correction to fade out
+const TELEPORT_STUDS = 1000;   // bigger jump = snap, don't glide
+const EXTRAPOLATION_INTERVAL_MS = 1000 / 10;
 
 async function fetchData() {
     try {
-        const response = await fetch(`http${secureProtocol}://${serverAddress}/data`, { cache: "no-cache" });
+        const response = await fetch(
+            `http${secureProtocol}://${serverAddress}/data`,
+            { cache: "no-cache" }
+        );
 
-        if (!response.ok) throw new Error("Network response was not ok");
+        if (!response.ok) {
+            throw new Error(
+                `Network response was not ok: ${response.status}`
+            );
+        }
 
         const enrichedAircraftMap = await response.json();
 
-        const newDataJSON = JSON.stringify(enrichedAircraftMap);
+        // Update motion state before updating the UI.
+        recordAircraftData(enrichedAircraftMap);
 
-        if (newDataJSON === lastDataJSON) { 
-            console.log("304");
-            return;
-        }
-
-        lastDataJSON = newDataJSON;
-
-        lastApiUpdate = performance.now();
-        lastInterpolationStep = lastApiUpdate;
         aircraftData = enrichedAircraftMap;
-        updateAircraftLayer(enrichedAircraftMap);
-        document.querySelectorAll('#ground-container').forEach(cont => {
+
+        document.querySelectorAll("#ground-container").forEach(cont => {
             updateGroundAircraftLayer(enrichedAircraftMap, cont);
         });
+
         preserveFocusWhileUpdating(() => {
             updateDepartures(enrichedAircraftMap);
         });
+
         preserveFocusWhileUpdating(() => {
             updateArrivals(enrichedAircraftMap);
         });
+
         setWinds();
 
     } catch (error) {
         console.error("Error fetching data:", error);
     }
 }
+
+fetchData();
 setInterval(fetchData, 1000);
 
-function updateInterpolatedPositions() {
-    const now = performance.now();
-    const elapsed = (now - lastInterpolationStep) / 1000;
-    lastInterpolationStep = now;
+function displayPos(m, now) {
+    const elapsed = (now - m.t) / 1000;
+    const age = Math.min(elapsed, MAX_PREDICT_S);
+    const fade = Math.exp(-elapsed / TAU);
+    return {
+        x: m.sx + m.vx * age + m.ox * fade,
+        y: m.sy + m.vy * age + m.oy * fade
+    };
+}
 
-    for (const ac of Object.values(aircraftData)) {
-        if (!ac.position || ac.groundSpeed == null || ac.heading == null) {
+function recordAircraftData(data) {
+    const now = performance.now();
+
+    for (const [id, info] of Object.entries(data)) {
+        const x = Number(info.position?.x);
+        const y = Number(info.position?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+
+        const m = aircraftMotion.get(id);
+        if (!m) {
+            aircraftMotion.set(id, { sx: x, sy: y, t: now, vx: 0, vy: 0, ox: 0, oy: 0 });
+            addTrailPoint(id, info, x, y);
             continue;
         }
 
-        const headingRad = ac.heading * Math.PI / 180;
-        const distance = ac.groundSpeed * 0.6442765 * elapsed;
+        // Repeated/stale position: keep everything as is.
+        if (m.sx === x && m.sy === y) continue;
 
-        ac.position.x += Math.sin(headingRad) * distance;
-        ac.position.y -= Math.cos(headingRad) * distance;
+        const dt = (now - m.t) / 1000;
+        const jump = Math.hypot(x - m.sx, y - m.sy);
+        const shown = displayPos(m, now);
+
+        if (jump > TELEPORT_STUDS || dt > 10) {
+            m.vx = m.vy = 0;
+            m.ox = m.oy = 0;
+        } else {
+            // Blend with the old velocity so uneven update timing doesn't cause jitter.
+            m.vx = 0.5 * m.vx + 0.5 * (x - m.sx) / dt;
+            m.vy = 0.5 * m.vy + 0.5 * (y - m.sy) / dt;
+            // Carry the visible gap forward and fade it out, so there is no jump.
+            m.ox = shown.x - x;
+            m.oy = shown.y - y;
+        }
+        m.sx = x; m.sy = y; m.t = now;
+        addTrailPoint(id, info, x, y);
     }
 
-    updateAircraftLayer(aircraftData);
-
-    document.querySelectorAll('#ground-container').forEach(cont => {
-        updateGroundAircraftLayer(aircraftData, cont);
-    });
+    for (const id of aircraftMotion.keys()) {
+        if (!(id in data)) {
+            aircraftMotion.delete(id);
+            clearTrail(id);
+        }
+    }
 }
 
-setInterval(updateInterpolatedPositions, 1000 / 100);
+function createRenderData(data, now) {
+    const out = {};
+    for (const [id, info] of Object.entries(data)) {
+        const m = aircraftMotion.get(id);
+        out[id] = m ? { ...info, position: displayPos(m, now) } : info;
+    }
+    return out;
+}
+
+function updateExtrapolatedPositions() {
+    if (!aircraftData) return;
+    if (!document.getElementById('map-svg')) return;
+    const now = performance.now();
+
+    const renderData = createRenderData(aircraftData, now);
+    updateAircraftLayer(renderData);
+    document.querySelectorAll("#ground-container").forEach(cont =>
+        updateGroundAircraftLayer(renderData, cont));
+}
+setInterval(updateExtrapolatedPositions, EXTRAPOLATION_INTERVAL_MS);
 
 async function loadApproachList(icao) {
     let paths;
@@ -1401,7 +1454,7 @@ function updateDepartures(data) {
     //add new rows
     for (const [id, info] of Object.entries(data)) {
         const fp = info.flightPlan;
-        if (!fp || !currentStations.has(fp.departing) || (fp.flightStatus === "landed" || info.flightStatus === "desceding" || info.flightStatus === "inFlight")) continue;
+        if (!fp || !currentStations.has(fp.departing) || (fp.flightStatus === "landed" || fp.flightStatus === "desceding" || fp.flightStatus === "inFlight")) continue;
 
         newIds.add(id);
 
@@ -2080,6 +2133,7 @@ function labelGroundMove(e, label, svg, group, start) {
   ========================================*/
 
 let aircraftElements = {}; // Maps aircraft ID to <g> element
+let lastLabelDown = { id: null, t: 0 };
 
 function updateAircraftLayer(data) {
     const newIds = new Set();
@@ -2152,32 +2206,21 @@ function updateAircraftLayer(data) {
                     isDraggingLabel = { bool: true, label: label };
                     start = { x: e.clientX, y: e.clientY };
                     e.preventDefault();
+
+                    // Manual double-click: two presses on the same aircraft within 400 ms
+                    const now = performance.now();
+                    if (lastLabelDown.id === id && now - lastLabelDown.t < 400) {
+                        lastLabelDown = { id: null, t: 0 };
+                        displayOverlay(id, aircraftData[id]);
+                    } else {
+                        lastLabelDown = { id, t: now };
+                    }
                 }
                 if (e.button == 1) {
                     const pin = label.getAttribute('pinned') == 'false' ? 'true' : 'false';
                     label.setAttribute('pinned', pin);
                     updateLabel(group, aircraftData[id], id);
                 }
-            });
-
-            document.addEventListener('mousemove', e => {
-                if (isDraggingLabel.bool == true) labelMove(e, label, svg, group, start);
-                if (isMeasuring == true) {
-
-                    const pt = svg.createSVGPoint();
-                    pt.x = e.clientX;
-                    pt.y = e.clientY;
-                    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                    updateMeasuringTool(svgP.x, svgP.y);
-                }
-            });
-
-            document.addEventListener('mouseup', e => {
-                isDraggingLabel.bool = false;
-            });
-
-            label.addEventListener("dblclick", function () {
-                displayOverlay(id, aircraftData[id]);
             });
 
             group.appendChild(icon);
@@ -2189,37 +2232,14 @@ function updateAircraftLayer(data) {
 
             svg.addEventListener('wheel', e => {
                 updateLabel(group, aircraftData[id], id);
-                document.querySelectorAll('.trail').forEach(trail => {
-                    trail.setAttribute('stroke-width', 1 * currentZoom);
-                });
+                updateTrailScale();
                 updateConnector(group);
             });
         }
 
         //update position
         group.setAttribute('transform', `translate(${x / 100}, ${y / 100})`);
-
-        //handle trails only if aircraft is not on the ground
-        if (!isOnGround || !info.isTaxiing) {
-            if (!aircraftTrails[id]) {
-                aircraftTrails[id] = [];
-            }
-
-            aircraftTrails[id].push({ x: x / 100, y: y / 100 });
-
-            if (aircraftTrails[id].length > maxTrailLength) {
-                aircraftTrails[id].shift();
-            }
-
-            drawTrail(id, aircraftTrails[id]);
-        } else {
-            // If on ground, remove any existing trail
-            const trail = document.getElementById(`trail-${id}`);
-            if (trail && trail.parentNode) {
-                trail.parentNode.removeChild(trail);
-            }
-            delete aircraftTrails[id];
-        }
+        updateTrailHead(id, x / 100, y / 100);
 
         //hide/show ground aircraft
         group.style.display = groundAircraftHidden && (isOnGround || info.isTaxiing) ? 'none' : 'block';
@@ -2233,7 +2253,12 @@ function updateAircraftLayer(data) {
         rotatePlaneIcon(group, heading);
 
         if (id == curentAircraftId) {
-            updateOverlay(id, info);
+            const k = [id, info.altitude, info.speed, info.heading, info.flightStatus,
+                    info.isOnGround, info.isTaxiing].join('|');
+            if (k !== overlayKey) {
+                overlayKey = k;
+                updateOverlay(id, info);
+            }
         }
     }
 
@@ -2246,14 +2271,6 @@ function updateAircraftLayer(data) {
             }
             delete aircraftElements[id];
             console.log(`Removed aircraft ${id}`);
-
-            // Also remove trail
-            const trail = document.getElementById(`trail-${id}`);
-            if (trail && trail.parentNode) {
-                trail.parentNode.removeChild(trail);
-            }
-
-            delete aircraftTrails[id];
         }
     }
 
@@ -2348,30 +2365,87 @@ function labelMove(e, label, svg, group, start) {
     updateConnector(group);
 }
 
-function drawTrail(id, points) {
-    const svg = document.getElementById('map-svg');
-    let path = document.getElementById(`trail-${id}`);
-    const trailsLayer = document.getElementById('trails-layer');
+/* Trail history: one point per real server update */
+const TRAIL_MAX = 15*3;
+const TRAIL_COLOR = '#5de4c7';
+const TRAIL_WIDTH = 0.9;               // base thickness
+const trailData = new Map();           // id -> [{x, y}]
+const trailHeads = new Map();          // id -> live segment element
 
-    if (!path) {
-        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('id', `trail-${id}`);
-        path.classList.add("trail");
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', 'cyan');
-        path.setAttribute('stroke-width', 0.5 * currentZoom);
-        trailsLayer.appendChild(path);
+function addTrailPoint(id, info, x, y) {
+    // Same rule as before: no trail while on the ground
+    if (info.isOnGround && info.isTaxiing) {
+        clearTrail(id);
+        return;
+    }
+    let pts = trailData.get(id);
+    if (!pts) trailData.set(id, pts = []);
+
+    pts.push({ x: x / 100, y: y / 100 });
+    if (pts.length > TRAIL_MAX) pts.shift();
+
+    renderTrail(id, pts);
+}
+
+function makeSeg(x1, y1, x2, y2, t) {
+    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    l.setAttribute('stroke', TRAIL_COLOR);
+    l.setAttribute('stroke-opacity', (1.08 + 0.72 * t).toFixed(2));
+    l.dataset.t = t;
+    return l;
+}
+
+function renderTrail(id, pts) {
+    const layer = document.getElementById('trails-layer');
+    if (!layer) return;   // map not ready; points are kept and drawn next update
+
+    let g = document.getElementById(`trail-${id}`);
+    if (!g) {
+        g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('id', `trail-${id}`);
+        g.classList.add('trail');
+        g.style.pointerEvents = 'none';
+        layer.appendChild(g);
     }
 
-    // Only render latest segment or full if trail is short
-    if (points.length < 2) return;
-
-    let d = `M ${points[0].x},${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-        d += ` L ${points[i].x},${points[i].y}`;
+    const n = pts.length;
+    const segs = [];
+    for (let i = 1; i < n; i++) {
+        segs.push(makeSeg(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y, i / n));
     }
 
-    path.setAttribute('d', d);
+    // Live segment from the last real point to the icon (moved each frame)
+    const last = pts[n - 1];
+    const head = makeSeg(last.x, last.y, last.x, last.y, 1);
+    segs.push(head);
+    trailHeads.set(id, head);
+
+    g.replaceChildren(...segs);
+    updateTrailScale(g);
+}
+
+/* Called every frame with the icon's drawn position (cheap: one segment) */
+function updateTrailHead(id, x, y) {
+    const head = trailHeads.get(id);
+    if (!head) return;
+    head.setAttribute('x2', x);
+    head.setAttribute('y2', y);
+}
+
+/* Keep line thickness constant on screen as the map zooms */
+function updateTrailScale(root = document.getElementById('trails-layer')) {
+    if (!root) return;
+    root.querySelectorAll('line').forEach(l => {
+        l.setAttribute('stroke-width', (0.5 + 0.5 * l.dataset.t) * TRAIL_WIDTH * currentZoom);
+    });
+}
+
+function clearTrail(id) {
+    trailData.delete(id);
+    trailHeads.delete(id);
+    document.getElementById(`trail-${id}`)?.remove();
 }
 
 function updateConnector(group) {
@@ -2438,11 +2512,18 @@ function updateLabel(group, info, id) {
 
     label.setAttribute('font-size', labelFontSize * currentZoom);
 
+    const star = label.getAttribute('pinned') == 'true' ? ' ★' : '';
+
+    // Only rebuild the text when something visible changed. Rebuilding every
+    // frame destroys the element under the mouse and breaks double-click.
+    const key = [id, star, info.altitude, info.speed, info.heading,
+                 info.aircraftType, color, currentZoom, labelFontSize].join('|');
+    if (group._labelKey === key) return;
+    group._labelKey = key;
+
     const callsignParts = id.split("-");
     const carrier = callsignParts[0];
     const number = callsignParts[1];
-
-    const star = label.getAttribute('pinned') == 'true' ? ' ★' : '';
 
     text.innerHTML = `
         <tspan dx="0" dy="0em" id="tspan1">${callsignMap.get(carrier) + number + star}</tspan>
@@ -2452,7 +2533,6 @@ function updateLabel(group, info, id) {
     const tspan1 = text.querySelector("#tspan1").getBBox().width;
     const tspan2 = text.querySelector("#tspan2").getBBox().width;
 
-    // Now update the text content with aligned tspans
     text.innerHTML = `
         <tspan id="tspan1" dx="0" dy="0em">${callsignMap.get(carrier) + number + star}</tspan>
         <tspan id="tspan2" dx="-${(tspan1 + 6 * currentZoom)}" dy="1.2em">${info.altitude}ftㅤ${info.speed}kt</tspan>
